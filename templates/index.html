@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+{% block content %}
+
+<h2 class="mb-4">Instrument Selection</h2>
+
+<div class="row g-4">
+  {% set instruments = [
+    ("Magnetic Flow Meter","/magnetic-flow-meter"),
+    ("Vortex Flow Meter","/vortex-flow-meter"),
+    ("Transmitter","/transmitter"),
+    ("Temperature Transmitter","/temperature-transmitter"),
+    ("Control Valve","/control-valve")
+  ] %}
+
+  {% for name, link in instruments %}
+  <div class="col-md-4">
+    <div class="card shadow h-100">
+      <div class="card-body">
+        <h5>{{ name }}</h5>
+        <a href="{{ link }}" class="btn btn-primary mt-2">Select</a>
+      </div>
+    </div>
+  </div>
+  {% endfor %}
+</div>
+
+{% endblock %}

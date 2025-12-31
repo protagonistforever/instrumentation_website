@@ -1,0 +1,43 @@
+{% extends "base.html" %}
+{% block content %}
+
+<h3 class="mb-3">Magnetic Flow Meter Selection</h3>
+
+<p class="text-muted">
+Used for conductive liquid flow measurement based on Faraday’s law.
+</p>
+
+<div class="card p-4 shadow-sm mb-4">
+  <form method="post">
+    <div class="row g-3">
+
+      <div class="col-md-6">
+        <label class="form-label">Flow Rate (m³/hr)</label>
+        <input type="number" step="any" name="flow_rate" class="form-control" required>
+      </div>
+
+      <div class="col-md-6 d-flex align-items-end">
+        <button class="btn btn-dark w-100">Auto-Recommend</button>
+      </div>
+
+    </div>
+  </form>
+</div>
+
+{% if result %}
+<div class="card border-success p-4 shadow-sm">
+  <h5 class="text-success">Recommended Magnetic Flow Meter</h5>
+  <table class="table table-bordered mt-3">
+    <tr><th>Range</th><td>{{ result.Range_Min }} – {{ result.Range_Max }}</td></tr>
+    <tr><th>Line Size</th><td>{{ result.Line_Size }}</td></tr>
+    <tr><th>Lining</th><td>{{ result.Lining }}</td></tr>
+    <tr><th>Cost</th><td>{{ result.Cost }}</td></tr>
+  </table>
+</div>
+{% elif searched %}
+<div class="alert alert-warning">No suitable magnetic flow meter found.</div>
+{% endif %}
+
+<a href="/" class="btn btn-secondary mt-4">⬅ Back</a>
+
+{% endblock %}

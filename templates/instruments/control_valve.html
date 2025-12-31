@@ -1,0 +1,43 @@
+{% extends "base.html" %}
+{% block content %}
+
+<h3 class="mb-3">Control Valve Selection</h3>
+
+<p class="text-muted">
+Used for modulating flow based on process control requirements.
+</p>
+
+<div class="card p-4 shadow-sm mb-4">
+  <form method="post">
+    <div class="row g-3">
+
+      <div class="col-md-6">
+        <label class="form-label">Flow Rate</label>
+        <input type="number" step="any" name="flow" class="form-control" required>
+      </div>
+
+      <div class="col-md-6 d-flex align-items-end">
+        <button class="btn btn-dark w-100">Auto-Recommend</button>
+      </div>
+
+    </div>
+  </form>
+</div>
+
+{% if result %}
+<div class="card border-success p-4 shadow-sm">
+  <h5 class="text-success">Recommended Control Valve</h5>
+  <table class="table table-bordered mt-3">
+    <tr><th>Valve Type</th><td>{{ result.Type }}</td></tr>
+    <tr><th>Size</th><td>{{ result.Size }}</td></tr>
+    <tr><th>Body Material</th><td>{{ result.Material }}</td></tr>
+    <tr><th>Cost</th><td>{{ result.Cost }}</td></tr>
+  </table>
+</div>
+{% elif searched %}
+<div class="alert alert-warning">No suitable control valve found.</div>
+{% endif %}
+
+<a href="/" class="btn btn-secondary mt-4">⬅ Back</a>
+
+{% endblock %}

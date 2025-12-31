@@ -1,0 +1,17 @@
+{% extends "base.html" %}
+{% block content %}
+
+<a href="/admin/add" class="btn btn-success mb-3">Add Instrument</a>
+
+<table class="table table-bordered">
+<tr><th>Instrument</th><th>Range</th><th>Cost</th></tr>
+{% for r in rows %}
+<tr>
+<td>{{ r.Instrument }}</td>
+<td>{{ r.Range }}</td>
+<td>{{ r.Cost }}</td>
+</tr>
+{% endfor %}
+</table>
+
+{% endblock %}
