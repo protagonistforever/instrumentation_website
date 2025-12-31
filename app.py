@@ -13,46 +13,51 @@ SCOPES = [
     "https://www.googleapis.com/auth/drive"
 ]
 
-# ================== GOOGLE SHEETS (CACHED) ==================
-_sheet = None
+# ================== GOOGLE SHEETS (CACHED PER WORKSHEET) ==================
+_sheet_cache = {}
 
-
-def get_sheet():
-    global _sheet
-    if _sheet is None:
+def get_sheet(worksheet_name):
+    if worksheet_name not in _sheet_cache:
         creds = Credentials.from_service_account_info(
             json.loads(os.environ["GOOGLE_CREDENTIALS"]),
             scopes=SCOPES
         )
         client = gspread.authorize(creds)
-        _sheet = client.open_by_key(os.environ["SHEET_ID"]).sheet1
-    return _sheet
+        spreadsheet = client.open_by_key(os.environ["SHEET_ID"])
+        try:
+            _sheet_cache[worksheet_name] = spreadsheet.worksheet(worksheet_name)
+        except gspread.WorksheetNotFound:
+            raise ValueError(f"Worksheet '{worksheet_name}' not found in the spreadsheet.")
+    return _sheet_cache[worksheet_name]
 
-
-def get_all_rows():
-    """Get all rows as list of dicts (cached per request cycle)"""
-    return get_sheet().get_all_records()
-
-
-def get_rows(instrument=None):
-    rows = get_all_rows()
+# For original instruments (assumed to be in the first/main tab)
+def get_main_rows(instrument=None):
+    sheet = get_sheet("Sheet1")  # Change to your actual main tab name if different (e.g., "Instruments")
+    rows = sheet.get_all_records()
     if instrument:
         rows = [r for r in rows if r.get("Instrument", "").strip() == instrument]
     return rows
 
+# Specific for Magnetic Flow Meter tab
+def get_magnetic_rows():
+    try:
+        sheet = get_sheet("magnetic_flow_meter")
+        return sheet.get_all_records()
+    except:
+        return []  # Return empty if tab missing or error
 
 def add_row(data):
-    get_sheet().append_row([
+    # This still adds to main sheet — update if you want per-instrument tabs for adding
+    sheet = get_sheet("Sheet1")
+    sheet.append_row([
         data.get("Instrument", ""),
-        data.get("Size", ""),           # new
-        data.get("Type", ""),            # Integral / Non-Integral
-        data.get("Liner Material", ""),  # new
+        data.get("Size", ""),
+        data.get("Type", ""),
+        data.get("Liner Material", ""),
         data.get("Cost", ""),
         data.get("Supplier", ""),
         data.get("Date", ""),
-        # add more columns here if needed
     ])
-
 
 # ================== UTILITIES ==================
 def parse_range(range_str):
@@ -64,7 +69,6 @@ def parse_range(range_str):
     except:
         return None, None
 
-
 def find_match(rows, value):
     for r in rows:
         min_r, max_r = parse_range(r.get("Range", ""))
@@ -74,30 +78,29 @@ def find_match(rows, value):
             return r
     return None
 
-
 # ================== ROUTES ==================
 @app.route("/")
 def index():
     return render_template("index.html", title="Instrument Selection")
 
-
-# ---------- MAGNETIC FLOW METER (NEW DYNAMIC VERSION) ----------
+# ---------- MAGNETIC FLOW METER ----------
 @app.route("/magnetic-flow-meter", methods=["GET", "POST"])
 def magnetic():
-    # Old flow-rate based search (kept for backward compatibility if needed)
     result = None
     searched = False
+
+    # Optional: Keep old flow rate search if your main sheet has range-based data
     if request.method == "POST" and "flow_rate" in request.form:
         searched = True
         try:
             flow = float(request.form["flow_rate"])
-            rows = get_rows("Magnetic Flow Meter")
+            rows = get_main_rows("Magnetic Flow Meter")
             result = find_match(rows, flow)
         except:
             result = None
 
-    # Load unique sizes for dropdown
-    all_rows = get_rows("Magnetic Flow Meter")
+    # Load sizes from dedicated tab
+    all_rows = get_magnetic_rows()
     sizes = sorted({row.get("Size", "").strip() for row in all_rows if row.get("Size", "").strip()})
 
     return render_template(
@@ -107,28 +110,21 @@ def magnetic():
         searched=searched
     )
 
-
-# AJAX endpoints for dynamic dropdowns
+# AJAX endpoints (all use the magnetic_flow_meter tab)
 @app.route("/api/magnetic/sizes")
 def api_magnetic_sizes():
-    rows = get_rows("Magnetic Flow Meter")
+    rows = get_magnetic_rows()
     sizes = sorted({row.get("Size", "").strip() for row in rows if row.get("Size", "").strip()})
     return jsonify(list(sizes))
-
 
 @app.route("/api/magnetic/types")
 def api_magnetic_types():
     size = request.args.get("size", "").strip()
     if not size:
         return jsonify([])
-    rows = get_rows("Magnetic Flow Meter")
-    types = {
-        row.get("Type", "").strip()
-        for row in rows
-        if row.get("Size", "").strip() == size and row.get("Type", "").strip()
-    }
+    rows = get_magnetic_rows()
+    types = {row.get("Type", "").strip() for row in rows if row.get("Size", "").strip() == size and row.get("Type", "").strip()}
     return jsonify(sorted(types))
-
 
 @app.route("/api/magnetic/liners")
 def api_magnetic_liners():
@@ -136,27 +132,18 @@ def api_magnetic_liners():
     type_ = request.args.get("type", "").strip()
     if not size or not type_:
         return jsonify([])
-    rows = get_rows("Magnetic Flow Meter")
-    liners = {
-        row.get("Liner Material", "").strip()
-        for row in rows
-        if row.get("Size", "").strip() == size
-        and row.get("Type", "").strip() == type_
-        and row.get("Liner Material", "").strip()
-    }
+    rows = get_magnetic_rows()
+    liners = {row.get("Liner Material", "").strip() for row in rows if row.get("Size", "").strip() == size and row.get("Type", "").strip() == type_ and row.get("Liner Material", "").strip()}
     return jsonify(sorted(liners))
-
 
 @app.route("/api/magnetic/details")
 def api_magnetic_details():
     size = request.args.get("size", "").strip()
     type_ = request.args.get("type", "").strip()
     liner = request.args.get("liner", "").strip()
-
     if not all([size, type_, liner]):
         return jsonify([])
-
-    rows = get_rows("Magnetic Flow Meter")
+    rows = get_magnetic_rows()
     matches = [
         row for row in rows
         if row.get("Size", "").strip() == size
@@ -165,8 +152,7 @@ def api_magnetic_details():
     ]
     return jsonify(matches)
 
-
-# Keep other instruments as before
+# Other instruments unchanged (use main sheet)
 @app.route("/vortex-flow-meter", methods=["GET", "POST"])
 def vortex():
     result = None
@@ -175,12 +161,11 @@ def vortex():
         searched = True
         try:
             flow = float(request.form["flow_rate"])
-            rows = get_rows("Vortex Flow Meter")
+            rows = get_main_rows("Vortex Flow Meter")
             result = find_match(rows, flow)
         except:
             pass
     return render_template("instruments/vortex_flow.html", result=result, searched=searched)
-
 
 @app.route("/transmitter", methods=["GET", "POST"])
 def transmitter():
@@ -190,12 +175,11 @@ def transmitter():
         searched = True
         try:
             pressure = float(request.form["pressure"])
-            rows = get_rows("Transmitter")
+            rows = get_main_rows("Transmitter")
             result = find_match(rows, pressure)
         except:
             pass
     return render_template("instruments/transmitter.html", result=result, searched=searched)
-
 
 @app.route("/temperature-transmitter", methods=["GET", "POST"])
 def temperature():
@@ -205,12 +189,11 @@ def temperature():
         searched = True
         try:
             temp = float(request.form["temperature"])
-            rows = get_rows("Temperature Transmitter")
+            rows = get_main_rows("Temperature Transmitter")
             result = find_match(rows, temp)
         except:
             pass
     return render_template("instruments/temperature.html", result=result, searched=searched)
-
 
 @app.route("/control-valve", methods=["GET", "POST"])
 def valve():
@@ -220,17 +203,15 @@ def valve():
         searched = True
         try:
             flow = float(request.form["flow_rate"])
-            rows = get_rows("Control Valve")
+            rows = get_main_rows("Control Valve")
             result = find_match(rows, flow)
         except:
             pass
     return render_template("instruments/control_valve.html", result=result, searched=searched)
 
-
 # ================== ADMIN ==================
 ADMIN_USER = os.environ.get("ADMIN_USER", "admin")
 ADMIN_PASS = os.environ.get("ADMIN_PASS", "admin")
-
 
 @app.route("/admin", methods=["GET", "POST"])
 def admin():
@@ -240,13 +221,12 @@ def admin():
             return redirect("/admin/dashboard")
     return render_template("admin/login.html")
 
-
 @app.route("/admin/dashboard")
 def dashboard():
     if "admin" not in session:
         return redirect("/admin")
-    return render_template("admin/dashboard.html", rows=get_all_rows())
-
+    rows = get_main_rows()  # Shows main sheet data
+    return render_template("admin/dashboard.html", rows=rows)
 
 @app.route("/admin/add", methods=["GET", "POST"])
 def add():
@@ -257,12 +237,10 @@ def add():
         return redirect("/admin/dashboard")
     return render_template("admin/add_row.html")
 
-
 @app.route("/admin/logout")
 def logout():
     session.clear()
     return redirect("/")
-
 
 # ================== SECURITY HEADERS ==================
 @app.after_request
@@ -271,7 +249,6 @@ def add_headers(resp):
     resp.headers["X-Frame-Options"] = "DENY"
     resp.headers["Cache-Control"] = "no-store"
     return resp
-
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000)
