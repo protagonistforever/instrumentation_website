@@ -4,20 +4,22 @@
 <h1>Magnetic Flow Meter Selection</h1>
 
 <!-- Optional: Keep old flow rate search if you want -->
-<!-- <form method="POST">
+<form method="POST">
     <label>Enter Flow Rate:</label>
     <input type="number" name="flow_rate" step="0.01" required>
     <button type="submit">Search by Flow Rate</button>
 </form>
+
 {% if searched and result %}
     <div class="result-card">
-        <h3>Recommended: {{ result.Model }}</h3>
-        <p>Cost: {{ result.Cost }} | Supplier: {{ result.Supplier }}</p>
+        <h3>Recommended: {{ result.Model or 'N/A' }}</h3>
+        <p>Cost: {{ result.Cost or '-' }} | Supplier: {{ result.Supplier or '-' }}</p>
     </div>
 {% elif searched %}
     <p>No match found for that flow rate.</p>
-{% endif>
-<hr> -->
+{% endif %}
+
+<hr>
 
 <h2>Configure by Size, Type & Liner</h2>
 
