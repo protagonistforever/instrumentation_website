@@ -1,43 +1,127 @@
 {% extends "base.html" %}
+
 {% block content %}
+<h1>Magnetic Flow Meter Selection</h1>
 
-<h3 class="mb-3">Magnetic Flow Meter Selection</h3>
-
-<p class="text-muted">
-Used for conductive liquid flow measurement based on Faraday’s law.
-</p>
-
-<div class="card p-4 shadow-sm mb-4">
-  <form method="post">
-    <div class="row g-3">
-
-      <div class="col-md-6">
-        <label class="form-label">Flow Rate (m³/hr)</label>
-        <input type="number" step="any" name="flow_rate" class="form-control" required>
-      </div>
-
-      <div class="col-md-6 d-flex align-items-end">
-        <button class="btn btn-dark w-100">Auto-Recommend</button>
-      </div>
-
+<!-- Optional: Keep old flow rate search if you want -->
+<!-- <form method="POST">
+    <label>Enter Flow Rate:</label>
+    <input type="number" name="flow_rate" step="0.01" required>
+    <button type="submit">Search by Flow Rate</button>
+</form>
+{% if searched and result %}
+    <div class="result-card">
+        <h3>Recommended: {{ result.Model }}</h3>
+        <p>Cost: {{ result.Cost }} | Supplier: {{ result.Supplier }}</p>
     </div>
-  </form>
-</div>
-
-{% if result %}
-<div class="card border-success p-4 shadow-sm">
-  <h5 class="text-success">Recommended Magnetic Flow Meter</h5>
-  <table class="table table-bordered mt-3">
-    <tr><th>Range</th><td>{{ result.Range_Min }} – {{ result.Range_Max }}</td></tr>
-    <tr><th>Line Size</th><td>{{ result.Line_Size }}</td></tr>
-    <tr><th>Lining</th><td>{{ result.Lining }}</td></tr>
-    <tr><th>Cost</th><td>{{ result.Cost }}</td></tr>
-  </table>
-</div>
 {% elif searched %}
-<div class="alert alert-warning">No suitable magnetic flow meter found.</div>
-{% endif %}
+    <p>No match found for that flow rate.</p>
+{% endif>
+<hr> -->
 
-<a href="/" class="btn btn-secondary mt-4">⬅ Back</a>
+<h2>Configure by Size, Type & Liner</h2>
 
+<div class="selection-box">
+    <label for="size">Size:</label>
+    <select id="size" name="size">
+        <option value="">-- Select Size --</option>
+    </select>
+
+    <br><br>
+
+    <label for="type">Type:</label>
+    <select id="type" name="type" disabled>
+        <option value="">-- First select Size --</option>
+    </select>
+
+    <br><br>
+
+    <label for="liner">Liner Material:</label>
+    <select id="liner" name="liner" disabled>
+        <option value="">-- First select Type --</option>
+    </select>
+</div>
+
+<div id="results" style="margin-top: 30px;"></div>
+
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script>
+$(document).ready(function() {
+    // Load sizes
+    $.get("/api/magnetic/sizes", function(sizes) {
+        sizes.forEach(function(size) {
+            $("#size").append(`<option value="${size}">${size}</option>`);
+        });
+    });
+
+    $("#size").change(function() {
+        const size = $(this).val();
+        $("#type").prop("disabled", true).empty().append('<option>-- Loading... --</option>');
+        $("#liner").prop("disabled", true).empty().append('<option>-- Select Type first --</option>');
+        $("#results").empty();
+
+        if (size) {
+            $.get("/api/magnetic/types", {size: size}, function(types) {
+                $("#type").empty().append('<option value="">-- Select Type --</option>');
+                types.forEach(t => $("#type").append(`<option value="${t}">${t}</option>`));
+                $("#type").prop("disabled", false);
+            });
+        }
+    });
+
+    $("#type").change(function() {
+        const size = $("#size").val();
+        const type = $(this).val();
+        $("#liner").prop("disabled", true).empty().append('<option>-- Loading... --</option>');
+        $("#results").empty();
+
+        if (type) {
+            $.get("/api/magnetic/liners", {size: size, type: type}, function(liners) {
+                $("#liner").empty().append('<option value="">-- Select Liner --</option>');
+                liners.forEach(l => $("#liner").append(`<option value="${l}">${l}</option>`));
+                $("#liner").prop("disabled", false);
+            });
+        }
+    });
+
+    $("#liner").change(function() {
+        const size = $("#size").val();
+        const type = $("#type").val();
+        const liner = $(this).val();
+
+        if (liner) {
+            $.get("/api/magnetic/details", {size: size, type: type, liner: liner}, function(data) {
+                $("#results").empty();
+                if (data.length === 0) {
+                    $("#results").html("<p>No matching configuration found.</p>");
+                    return;
+                }
+
+                let html = `<h3>Matching Configurations (${data.length})</h3><table class="table">`;
+                html += `<tr><th>Model</th><th>Cost</th><th>Supplier</th><th>Date</th><th>Other Details</th></tr>`;
+                data.forEach(row => {
+                    html += `<tr>
+                        <td>${row.Model || '-'}</td>
+                        <td>${row.Cost || '-'}</td>
+                        <td>${row.Supplier || '-'}</td>
+                        <td>${row.Date || '-'}</td>
+                        <td>${Object.entries(row).filter(([k]) => !['Model','Cost','Supplier','Date','Size','Type','Liner Material','Instrument'].includes(k)).map(([k,v]) => `<strong>${k}:</strong> ${v}`).join('<br>')}</td>
+                    </tr>`;
+                });
+                html += `</table>`;
+                $("#results").html(html);
+            });
+        } else {
+            $("#results").empty();
+        }
+    });
+});
+</script>
+
+<style>
+.selection-box { max-width: 500px; padding: 20px; border: 1px solid #ccc; border-radius: 8px; background: #f9f9f9; }
+.table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+.table th, .table td { border: 1px solid #ddd; padding: 10px; text-align: left; }
+.table th { background: #f0f0f0; }
+</style>
 {% endblock %}
