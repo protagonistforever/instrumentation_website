@@ -32,36 +32,50 @@ def get_sheet(worksheet_name):
 
 # For original instruments (assumed to be in the first/main tab)
 def get_main_rows(instrument=None):
-    sheet = get_sheet("Sheet1")  # Change to your actual main tab name if different (e.g., "Instruments")
-    rows = sheet.get_all_records()
-    if instrument:
-        rows = [r for r in rows if r.get("Instrument", "").strip() == instrument]
-    return rows
+    try:
+        sheet = get_sheet("Sheet1")  # Change this if your main tab has a different name
+        rows = sheet.get_all_records()
+        if instrument:
+            rows = [r for r in rows if str(r.get("Instrument", "")).strip() == instrument]
+        return rows
+    except:
+        return []
 
-# Specific for Magnetic Flow Meter tab
+# Specific for Magnetic Flow Meter tab — converts all values to strings safely
 def get_magnetic_rows():
     try:
         sheet = get_sheet("magnetic_flow_meter")
-        return sheet.get_all_records()
-    except:
-        return []  # Return empty if tab missing or error
+        records = sheet.get_all_records()
+        # Convert every value to string, handle empty cells
+        return [
+            {k: str(v).strip() if v not in ("", None) else "" for k, v in row.items()}
+            for row in records
+        ]
+    except Exception as e:
+        print(f"Error loading magnetic_flow_meter tab: {e}")
+        return []
 
 def add_row(data):
-    # This still adds to main sheet — update if you want per-instrument tabs for adding
-    sheet = get_sheet("Sheet1")
-    sheet.append_row([
-        data.get("Instrument", ""),
-        data.get("Size", ""),
-        data.get("Type", ""),
-        data.get("Liner Material", ""),
-        data.get("Cost", ""),
-        data.get("Supplier", ""),
-        data.get("Date", ""),
-    ])
+    # Adds to main sheet (Sheet1) — modify if you want to add to specific tabs later
+    try:
+        sheet = get_sheet("Sheet1")
+        sheet.append_row([
+            data.get("Instrument", ""),
+            data.get("Size", ""),
+            data.get("Type", ""),
+            data.get("Liner Material", ""),
+            data.get("Cost", ""),
+            data.get("Supplier", ""),
+            data.get("Date", ""),
+        ])
+    except Exception as e:
+        print(f"Error adding row: {e}")
 
 # ================== UTILITIES ==================
 def parse_range(range_str):
-    nums = re.findall(r"[\d.]+", range_str or "")
+    if not range_str:
+        return None, None
+    nums = re.findall(r"[\d.]+", str(range_str))
     if len(nums) != 2:
         return None, None
     try:
@@ -89,7 +103,6 @@ def magnetic():
     result = None
     searched = False
 
-    # Optional: Keep old flow rate search if your main sheet has range-based data
     if request.method == "POST" and "flow_rate" in request.form:
         searched = True
         try:
@@ -99,9 +112,9 @@ def magnetic():
         except:
             result = None
 
-    # Load sizes from dedicated tab
+    # Get sizes from magnetic_flow_meter tab
     all_rows = get_magnetic_rows()
-    sizes = sorted({row.get("Size", "").strip() for row in all_rows if row.get("Size", "").strip()})
+    sizes = sorted({row.get("Size", "") for row in all_rows if row.get("Size", "")})
 
     return render_template(
         "instruments/magnetic_flow.html",
@@ -110,11 +123,11 @@ def magnetic():
         searched=searched
     )
 
-# AJAX endpoints (all use the magnetic_flow_meter tab)
+# AJAX Endpoints for dynamic dropdowns
 @app.route("/api/magnetic/sizes")
 def api_magnetic_sizes():
     rows = get_magnetic_rows()
-    sizes = sorted({row.get("Size", "").strip() for row in rows if row.get("Size", "").strip()})
+    sizes = sorted({row.get("Size", "") for row in rows if row.get("Size", "")})
     return jsonify(list(sizes))
 
 @app.route("/api/magnetic/types")
@@ -123,7 +136,7 @@ def api_magnetic_types():
     if not size:
         return jsonify([])
     rows = get_magnetic_rows()
-    types = {row.get("Type", "").strip() for row in rows if row.get("Size", "").strip() == size and row.get("Type", "").strip()}
+    types = {row.get("Type", "") for row in rows if row.get("Size", "") == size and row.get("Type", "")}
     return jsonify(sorted(types))
 
 @app.route("/api/magnetic/liners")
@@ -133,7 +146,13 @@ def api_magnetic_liners():
     if not size or not type_:
         return jsonify([])
     rows = get_magnetic_rows()
-    liners = {row.get("Liner Material", "").strip() for row in rows if row.get("Size", "").strip() == size and row.get("Type", "").strip() == type_ and row.get("Liner Material", "").strip()}
+    liners = {
+        row.get("Liner Material", "")
+        for row in rows
+        if row.get("Size", "") == size
+        and row.get("Type", "") == type_
+        and row.get("Liner Material", "")
+    }
     return jsonify(sorted(liners))
 
 @app.route("/api/magnetic/details")
@@ -146,13 +165,13 @@ def api_magnetic_details():
     rows = get_magnetic_rows()
     matches = [
         row for row in rows
-        if row.get("Size", "").strip() == size
-        and row.get("Type", "").strip() == type_
-        and row.get("Liner Material", "").strip() == liner
+        if row.get("Size", "") == size
+        and row.get("Type", "") == type_
+        and row.get("Liner Material", "") == liner
     ]
     return jsonify(matches)
 
-# Other instruments unchanged (use main sheet)
+# Other Instruments (unchanged)
 @app.route("/vortex-flow-meter", methods=["GET", "POST"])
 def vortex():
     result = None
@@ -225,7 +244,7 @@ def admin():
 def dashboard():
     if "admin" not in session:
         return redirect("/admin")
-    rows = get_main_rows()  # Shows main sheet data
+    rows = get_main_rows()
     return render_template("admin/dashboard.html", rows=rows)
 
 @app.route("/admin/add", methods=["GET", "POST"])
