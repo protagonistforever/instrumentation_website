@@ -226,7 +226,7 @@ def api_transmitter_details():
 def temperature_transmitter_page():
     all_rows = get_temperature_rows()
     temp_types = sorted({row.get(TEMP_TYPE_COLUMN, "") for row in all_rows if row.get(TEMP_TYPE_COLUMN, "")})
-    return render_template("instruments/temperature_transmitter.html", temp_types=temp_types)
+    return render_template("instruments/temperature.html", temp_types=temp_types)
 
 @app.route("/api/temperature/types")
 def api_temperature_types():
