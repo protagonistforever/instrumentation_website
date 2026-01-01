@@ -30,10 +30,10 @@ def get_sheet(worksheet_name):
             raise ValueError(f"Worksheet '{worksheet_name}' not found in the spreadsheet.")
     return _sheet_cache[worksheet_name]
 
-# For original instruments (assumed to be in the first/main tab)
+# For legacy range-based search (if still needed)
 def get_main_rows(instrument=None):
     try:
-        sheet = get_sheet("Sheet1")  # Change this if your main tab has a different name
+        sheet = get_sheet("Sheet1")  # Change if your main tab has a different name
         rows = sheet.get_all_records()
         if instrument:
             rows = [r for r in rows if str(r.get("Instrument", "")).strip() == instrument]
@@ -41,12 +41,11 @@ def get_main_rows(instrument=None):
     except:
         return []
 
-# Specific for Magnetic Flow Meter tab — converts all values to strings safely
+# ================== MAGNETIC FLOW METER ==================
 def get_magnetic_rows():
     try:
         sheet = get_sheet("magnetic_flow_meter")
         records = sheet.get_all_records()
-        # Convert every value to string, handle empty cells
         return [
             {k: str(v).strip() if v not in ("", None) else "" for k, v in row.items()}
             for row in records
@@ -55,8 +54,28 @@ def get_magnetic_rows():
         print(f"Error loading magnetic_flow_meter tab: {e}")
         return []
 
+# ================== TRANSMITTER ==================
+def get_transmitter_rows():
+    try:
+        sheet = get_sheet("transmitter")
+        records = sheet.get_all_records()
+        # Convert all values to strings safely
+        cleaned = []
+        for row in records:
+            cleaned_row = {}
+            for k, v in row.items():
+                if k == "Dia seal: Intergral, Dia seal: Remote non Integral":
+                    # Fix typo in header if present — map to correct key
+                    cleaned_row["Dia Seal Type"] = str(v).strip() if v not in ("", None) else ""
+                else:
+                    cleaned_row[k] = str(v).strip() if v not in ("", None) else ""
+            cleaned.append(cleaned_row)
+        return cleaned
+    except Exception as e:
+        print(f"Error loading transmitter tab: {e}")
+        return []
+
 def add_row(data):
-    # Adds to main sheet (Sheet1) — modify if you want to add to specific tabs later
     try:
         sheet = get_sheet("Sheet1")
         sheet.append_row([
@@ -102,7 +121,6 @@ def index():
 def magnetic():
     result = None
     searched = False
-
     if request.method == "POST" and "flow_rate" in request.form:
         searched = True
         try:
@@ -112,7 +130,6 @@ def magnetic():
         except:
             result = None
 
-    # Get sizes from magnetic_flow_meter tab
     all_rows = get_magnetic_rows()
     sizes = sorted({row.get("Size", "") for row in all_rows if row.get("Size", "")})
 
@@ -123,7 +140,7 @@ def magnetic():
         searched=searched
     )
 
-# AJAX Endpoints for dynamic dropdowns
+# Magnetic AJAX
 @app.route("/api/magnetic/sizes")
 def api_magnetic_sizes():
     rows = get_magnetic_rows()
@@ -146,13 +163,7 @@ def api_magnetic_liners():
     if not size or not type_:
         return jsonify([])
     rows = get_magnetic_rows()
-    liners = {
-        row.get("Liner Material", "")
-        for row in rows
-        if row.get("Size", "") == size
-        and row.get("Type", "") == type_
-        and row.get("Liner Material", "")
-    }
+    liners = {row.get("Liner Material", "") for row in rows if row.get("Size", "") == size and row.get("Type", "") == type_ and row.get("Liner Material", "")}
     return jsonify(sorted(liners))
 
 @app.route("/api/magnetic/details")
@@ -163,15 +174,74 @@ def api_magnetic_details():
     if not all([size, type_, liner]):
         return jsonify([])
     rows = get_magnetic_rows()
+    matches = [row for row in rows if row.get("Size", "") == size and row.get("Type", "") == type_ and row.get("Liner Material", "") == liner]
+    return jsonify(matches)
+
+# ---------- TRANSMITTER (NEW MODERN VERSION) ----------
+@app.route("/transmitter")
+def transmitter_page():
+    all_rows = get_transmitter_rows()
+    types = sorted({row.get("Type", "") for row in all_rows if row.get("Type", "")})
+    return render_template("instruments/transmitter.html", types=types)
+
+# Transmitter AJAX Endpoints
+@app.route("/api/transmitter/types")
+def api_transmitter_types():
+    rows = get_transmitter_rows()
+    types = sorted({row.get("Type", "") for row in rows if row.get("Type", "")})
+    return jsonify(list(types))
+
+@app.route("/api/transmitter/dia_seal")
+def api_transmitter_dia_seal():
+    type_val = request.args.get("type", "").strip()
+    if not type_val:
+        return jsonify([])
+    rows = get_transmitter_rows()
+    dia_seals = {row.get("Dia Seal Type", "") for row in rows if row.get("Type", "") == type_val and row.get("Dia Seal Type", "")}
+    return jsonify(sorted(dia_seals))
+
+@app.route("/api/transmitter/range_value")
+def api_transmitter_range_value():
+    type_val = request.args.get("type", "").strip()
+    dia_seal = request.args.get("dia_seal", "").strip()
+    if not type_val or not dia_seal:
+        return jsonify([])
+    rows = get_transmitter_rows()
+    ranges = {row.get("Range value", "") for row in rows if row.get("Type", "") == type_val and row.get("Dia Seal Type", "") == dia_seal and row.get("Range value", "")}
+    return jsonify(sorted(ranges))
+
+@app.route("/api/transmitter/range_unit")
+def api_transmitter_range_unit():
+    type_val = request.args.get("type", "").strip()
+    dia_seal = request.args.get("dia_seal", "").strip()
+    range_val = request.args.get("range_value", "").strip()
+    if not all([type_val, dia_seal, range_val]):
+        return jsonify([])
+    rows = get_transmitter_rows()
+    units = {row.get("Range in mmwcl or Kg/cm2", "") for row in rows if row.get("Type", "") == type_val and row.get("Dia Seal Type", "") == dia_seal and row.get("Range value", "") == range_val and row.get("Range in mmwcl or Kg/cm2", "")}
+    return jsonify(sorted(units))
+
+@app.route("/api/transmitter/details")
+def api_transmitter_details():
+    type_val = request.args.get("type", "").strip()
+    dia_seal = request.args.get("dia_seal", "").strip()
+    range_val = request.args.get("range_value", "").strip()
+    unit = request.args.get("unit", "").strip()
+
+    if not all([type_val, dia_seal, range_val, unit]):
+        return jsonify([])
+
+    rows = get_transmitter_rows()
     matches = [
         row for row in rows
-        if row.get("Size", "") == size
-        and row.get("Type", "") == type_
-        and row.get("Liner Material", "") == liner
+        if row.get("Type", "") == type_val
+        and row.get("Dia Seal Type", "") == dia_seal
+        and row.get("Range value", "") == range_val
+        and row.get("Range in mmwcl or Kg/cm2", "") == unit
     ]
     return jsonify(matches)
 
-# Other Instruments (unchanged)
+# Keep other old routes for backward compatibility
 @app.route("/vortex-flow-meter", methods=["GET", "POST"])
 def vortex():
     result = None
@@ -185,20 +255,6 @@ def vortex():
         except:
             pass
     return render_template("instruments/vortex_flow.html", result=result, searched=searched)
-
-@app.route("/transmitter", methods=["GET", "POST"])
-def transmitter():
-    result = None
-    searched = False
-    if request.method == "POST":
-        searched = True
-        try:
-            pressure = float(request.form["pressure"])
-            rows = get_main_rows("Transmitter")
-            result = find_match(rows, pressure)
-        except:
-            pass
-    return render_template("instruments/transmitter.html", result=result, searched=searched)
 
 @app.route("/temperature-transmitter", methods=["GET", "POST"])
 def temperature():
