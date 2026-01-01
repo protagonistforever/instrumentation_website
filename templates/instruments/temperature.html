@@ -1,43 +1,109 @@
 {% extends "base.html" %}
+
 {% block content %}
+<div class="container py-5">
+    <h1 class="display-5 fw-bold text-center mb-5 text-primary">Temperature Transmitter Selection</h1>
 
-<h3 class="mb-3">Temperature Transmitter Selection</h3>
+    <div class="row justify-content-center">
+        <div class="col-lg-8 col-xl-6">
+            <div class="card shadow-sm border-0">
+                <div class="card-body p-5">
+                    <h3 class="card-title text-center mb-4">Configure Transmitter</h3>
 
-<p class="text-muted">
-Used with RTD or Thermocouple sensors for temperature measurement.
-</p>
+                    <div class="mb-4">
+                        <label for="temp_type" class="form-label fw-semibold">Transmitter Type</label>
+                        <select class="form-select form-select-lg" id="temp_type" required>
+                            <option value="">-- Choose Type --</option>
+                        </select>
+                        <div class="spinner-border spinner-border-sm text-primary mt-2 d-none" id="type-spinner"></div>
+                    </div>
 
-<div class="card p-4 shadow-sm mb-4">
-  <form method="post">
-    <div class="row g-3">
+                    <div class="mb-4">
+                        <label for="chamber" class="form-label fw-semibold">Housing</label>
+                        <select class="form-select form-select-lg" id="chamber" disabled>
+                            <option value="">-- First select Transmitter Type --</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
 
-      <div class="col-md-6">
-        <label class="form-label">Temperature (°C)</label>
-        <input type="number" step="any" name="temperature" class="form-control" required>
-      </div>
-
-      <div class="col-md-6 d-flex align-items-end">
-        <button class="btn btn-dark w-100">Auto-Recommend</button>
-      </div>
-
+            <div id="results" class="mt-5"></div>
+        </div>
     </div>
-  </form>
 </div>
 
-{% if result %}
-<div class="card border-success p-4 shadow-sm">
-  <h5 class="text-success">Recommended Temperature Transmitter</h5>
-  <table class="table table-bordered mt-3">
-    <tr><th>Sensor Type</th><td>{{ result.Sensor }}</td></tr>
-    <tr><th>Range</th><td>{{ result.Range_Min }} – {{ result.Range_Max }}</td></tr>
-    <tr><th>Output</th><td>{{ result.Output }}</td></tr>
-    <tr><th>Cost</th><td>{{ result.Cost }}</td></tr>
-  </table>
-</div>
-{% elif searched %}
-<div class="alert alert-warning">No suitable temperature transmitter found.</div>
-{% endif %}
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
 
-<a href="/" class="btn btn-secondary mt-4">⬅ Back</a>
+<script>
+$(document).ready(function() {
+    $('#type-spinner').removeClass('d-none');
+    $.get("/api/temperature/types")
+        .done(function(types) {
+            types.forEach(t => $("#temp_type").append(`<option value="${t}">${t}</option>`));
+        })
+        .always(() => $('#type-spinner').addClass('d-none'));
 
+    $("#temp_type").change(function() {
+        const temp_type = $(this).val();
+        $("#chamber").prop("disabled", true).empty().append('<option>-- Loading... --</option>');
+        $("#results").empty();
+
+        if (temp_type) {
+            $.get("/api/temperature/chamber", {temp_type: temp_type})
+                .done(function(chambers) {
+                    $("#chamber").empty().append('<option value="">-- Select Housing --</option>');
+                    chambers.forEach(c => $("#chamber").append(`<option value="${c}">${c}</option>`));
+                    $("#chamber").prop("disabled", false);
+                });
+        }
+    });
+
+    $("#chamber").change(function() {
+        const temp_type = $("#temp_type").val();
+        const chamber = $(this).val();
+
+        if (chamber) {
+            $("#results").html(`<div class="text-center py-5"><div class="spinner-border text-primary"></div></div>`);
+            $.get("/api/temperature/details", {temp_type: temp_type, chamber: chamber})
+                .done(function(data) {
+                    $("#results").empty();
+                    if (data.length === 0) {
+                        $("#results").html(`<div class="alert alert-info text-center">No matching temperature transmitter found.</div>`);
+                        return;
+                    }
+
+                    let html = `<h3 class="mb-4 text-primary">Available Options (${data.length})</h3>
+                                <div class="table-responsive">
+                                    <table class="table table-hover">
+                                        <thead class="table-light">
+                                            <tr><th>Cost</th><th>Supplier</th><th>Date</th><th>Remarks</th></tr>
+                                        </thead>
+                                        <tbody>`;
+
+                    data.forEach(row => {
+                        html += `<tr>
+                            <td><strong>${row.cost || row.Cost || '-'}</strong></td>
+                            <td>${row.supplier || row.Supplier || '-'}</td>
+                            <td>${row.Date || '-'}</td>
+                            <td>${row.Remarks || '-'}</td>
+                        </tr>`;
+                    });
+
+                    html += `</tbody></table></div>`;
+                    $("#results").html(html);
+                })
+                .fail(() => $("#results").html(`<div class="alert alert-danger">Error loading data.</div>`));
+        } else {
+            $("#results").empty();
+        }
+    });
+});
+</script>
+
+<style>
+    .card { border-radius: 16px; }
+    .form-select-lg { border-radius: 12px; padding: 0.75rem 1rem; }
+    .table th { font-weight: 600; background: #f8f9fa; }
+</style>
 {% endblock %}
