@@ -1,43 +1,154 @@
 {% extends "base.html" %}
+
 {% block content %}
+<div class="container py-5">
+    <h1 class="display-5 fw-bold text-center mb-5 text-primary">Transmitter Selection</h1>
 
-<h3 class="mb-3">Pressure / DP / Flow Transmitter Selection</h3>
+    <div class="row justify-content-center">
+        <div class="col-lg-8 col-xl-6">
+            <div class="card shadow-sm border-0">
+                <div class="card-body p-5">
+                    <h3 class="card-title text-center mb-4">Configure Transmitter</h3>
 
-<p class="text-muted">
-Used for pressure, differential pressure and flow applications.
-</p>
+                    <div class="mb-4">
+                        <label for="type" class="form-label fw-semibold">Type (PT / DPT / FT)</label>
+                        <select class="form-select form-select-lg" id="type" required>
+                            <option value="">-- Choose Type --</option>
+                        </select>
+                        <div class="spinner-border spinner-border-sm text-primary mt-2 d-none" id="type-spinner"></div>
+                    </div>
 
-<div class="card p-4 shadow-sm mb-4">
-  <form method="post">
-    <div class="row g-3">
+                    <div class="mb-4">
+                        <label for="dia_seal" class="form-label fw-semibold">Diaphragm Seal</label>
+                        <select class="form-select form-select-lg" id="dia_seal" disabled>
+                            <option value="">-- First select Type --</option>
+                        </select>
+                    </div>
 
-      <div class="col-md-6">
-        <label class="form-label">Pressure Range (Bar)</label>
-        <input type="number" step="any" name="pressure" class="form-control" required>
-      </div>
+                    <div class="mb-4">
+                        <label for="range_value" class="form-label fw-semibold">Range Value</label>
+                        <select class="form-select form-select-lg" id="range_value" disabled>
+                            <option value="">-- First select Diaphragm Seal --</option>
+                        </select>
+                    </div>
 
-      <div class="col-md-6 d-flex align-items-end">
-        <button class="btn btn-dark w-100">Auto-Recommend</button>
-      </div>
+                    <div class="mb-4">
+                        <label for="unit" class="form-label fw-semibold">Range Unit</label>
+                        <select class="form-select form-select-lg" id="unit" disabled>
+                            <option value="">-- First select Range Value --</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
 
+            <div id="results" class="mt-5"></div>
+        </div>
     </div>
-  </form>
 </div>
 
-{% if result %}
-<div class="card border-success p-4 shadow-sm">
-  <h5 class="text-success">Recommended Transmitter</h5>
-  <table class="table table-bordered mt-3">
-    <tr><th>Type</th><td>{{ result.Type }}</td></tr>
-    <tr><th>Range</th><td>{{ result.Range_Min }} – {{ result.Range_Max }}</td></tr>
-    <tr><th>Accuracy</th><td>{{ result.Accuracy }}</td></tr>
-    <tr><th>Cost</th><td>{{ result.Cost }}</td></tr>
-  </table>
-</div>
-{% elif searched %}
-<div class="alert alert-warning">No suitable transmitter found.</div>
-{% endif %}
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
 
-<a href="/" class="btn btn-secondary mt-4">⬅ Back</a>
+<script>
+$(document).ready(function() {
+    $('#type-spinner').removeClass('d-none');
+    $.get("/api/transmitter/types")
+        .done(function(types) {
+            types.forEach(t => $("#type").append(`<option value="${t}">${t}</option>`));
+        })
+        .always(() => $('#type-spinner').addClass('d-none'));
 
+    $("#type").change(function() {
+        const type = $(this).val();
+        reset("#dia_seal", "-- First select Type --");
+        reset("#range_value", "-- Select Diaphragm Seal first --");
+        reset("#unit", "-- Select Range Value first --");
+        $("#results").empty();
+
+        if (type) loadOptions("/api/transmitter/dia_seal", {type: type}, "#dia_seal", "-- Select Diaphragm Seal --");
+    });
+
+    $("#dia_seal").change(function() {
+        const type = $("#type").val();
+        const dia_seal = $(this).val();
+        reset("#range_value", "-- Select Diaphragm Seal first --");
+        reset("#unit", "-- Select Range Value first --");
+        $("#results").empty();
+
+        if (dia_seal) loadOptions("/api/transmitter/range_value", {type: type, dia_seal: dia_seal}, "#range_value", "-- Select Range Value --");
+    });
+
+    $("#range_value").change(function() {
+        const type = $("#type").val();
+        const dia_seal = $("#dia_seal").val();
+        const range_value = $(this).val();
+        reset("#unit", "-- Select Range Value first --");
+        $("#results").empty();
+
+        if (range_value) loadOptions("/api/transmitter/range_unit", {type: type, dia_seal: dia_seal, range_value: range_value}, "#unit", "-- Select Unit --");
+    });
+
+    $("#unit").change(function() {
+        const type = $("#type").val();
+        const dia_seal = $("#dia_seal").val();
+        const range_value = $("#range_value").val();
+        const unit = $(this).val();
+
+        if (unit) {
+            $("#results").html(`<div class="text-center py-5"><div class="spinner-border text-primary"></div></div>`);
+            $.get("/api/transmitter/details", {type, dia_seal, range_value, unit})
+                .done(function(data) {
+                    $("#results").empty();
+                    if (data.length === 0) {
+                        $("#results").html(`<div class="alert alert-info text-center">No matching transmitter found.</div>`);
+                        return;
+                    }
+
+                    let html = `<h3 class="mb-4 text-primary">Matching Transmitters (${data.length})</h3>
+                                <div class="table-responsive">
+                                    <table class="table table-hover">
+                                        <thead class="table-light">
+                                            <tr><th>Cost</th><th>Supplier</th><th>Date</th><th>Remarks</th></tr>
+                                        </thead>
+                                        <tbody>`;
+
+                    data.forEach(row => {
+                        html += `<tr>
+                            <td><strong>${row.cost || row.Cost || '-'}</strong></td>
+                            <td>${row.supplier || row.Supplier || '-'}</td>
+                            <td>${row.Date || '-'}</td>
+                            <td>${row.Remarks || '-'}</td>
+                        </tr>`;
+                    });
+
+                    html += `</tbody></table></div>`;
+                    $("#results").html(html);
+                })
+                .fail(() => $("#results").html(`<div class="alert alert-danger">Error loading data.</div>`));
+        } else {
+            $("#results").empty();
+        }
+    });
+
+    function reset(selector, text) {
+        $(selector).prop("disabled", true).empty().append(`<option value="">${text}</option>`);
+    }
+
+    function loadOptions(url, params, selector, placeholder) {
+        $(selector).prop("disabled", true).empty().append('<option>Loading...</option>');
+        $.get(url, params)
+            .done(function(opts) {
+                $(selector).empty().append(`<option value="">${placeholder}</option>`);
+                opts.forEach(o => $(selector).append(`<option value="${o}">${o}</option>`));
+                $(selector).prop("disabled", false);
+            });
+    }
+});
+</script>
+
+<style>
+    .card { border-radius: 16px; }
+    .form-select-lg { border-radius: 12px; padding: 0.75rem 1rem; }
+    .table th { font-weight: 600; background: #f8f9fa; }
+</style>
 {% endblock %}
