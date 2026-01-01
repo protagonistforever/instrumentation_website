@@ -30,7 +30,7 @@ def get_sheet(worksheet_name):
             raise ValueError(f"Worksheet '{worksheet_name}' not found in the spreadsheet.")
     return _sheet_cache[worksheet_name]
 
-# Legacy main sheet (for old range-based searches)
+# Legacy main sheet
 def get_main_rows(instrument=None):
     try:
         sheet = get_sheet("Sheet1")
@@ -74,6 +74,26 @@ def get_temperature_rows():
         return [{k: str(v).strip() if v not in ("", None) else "" for k, v in row.items()} for row in records]
     except Exception as e:
         print(f"Error loading temperature_transmitter tab: {e}")
+        return []
+
+# ================== VORTEX FLOW METER ==================
+def get_vortex_rows():
+    try:
+        sheet = get_sheet("vortex_flow_meter")
+        records = sheet.get_all_records()
+        return [{k: str(v).strip() if v not in ("", None) else "" for k, v in row.items()} for row in records]
+    except Exception as e:
+        print(f"Error loading vortex_flow_meter tab: {e}")
+        return []
+
+# ================== CONTROL VALVE ==================
+def get_control_valve_rows():
+    try:
+        sheet = get_sheet("control_valve")
+        records = sheet.get_all_records()
+        return [{k: str(v).strip() if v not in ("", None) else "" for k, v in row.items()} for row in records]
+    except Exception as e:
+        print(f"Error loading control_valve tab: {e}")
         return []
 
 def add_row(data):
@@ -136,7 +156,7 @@ def magnetic():
 
     return render_template("instruments/magnetic_flow.html", sizes=sizes, result=result, searched=searched)
 
-# Magnetic AJAX
+# Magnetic AJAX (unchanged)
 @app.route("/api/magnetic/sizes")
 def api_magnetic_sizes():
     rows = get_magnetic_rows()
@@ -177,6 +197,7 @@ def transmitter_page():
     types = sorted({row.get("Type", "") for row in all_rows if row.get("Type", "")})
     return render_template("instruments/transmitter.html", types=types)
 
+# Transmitter AJAX (unchanged)
 @app.route("/api/transmitter/types")
 def api_transmitter_types():
     rows = get_transmitter_rows()
@@ -221,13 +242,14 @@ def api_transmitter_details():
     matches = [row for row in rows if row.get("Type", "") == type_val and row.get(DIA_SEAL_COLUMN, "") == dia_seal and row.get("Range value", "") == range_val and row.get("Range in mmwcl or Kg/cm2", "") == unit]
     return jsonify(matches)
 
-# ---------- TEMPERATURE TRANSMITTER (MODERN VERSION) ----------
+# ---------- TEMPERATURE TRANSMITTER ----------
 @app.route("/temperature-transmitter")
 def temperature_transmitter_page():
     all_rows = get_temperature_rows()
     temp_types = sorted({row.get(TEMP_TYPE_COLUMN, "") for row in all_rows if row.get(TEMP_TYPE_COLUMN, "")})
-    return render_template("instruments/temperature.html", temp_types=temp_types)
+    return render_template("instruments/temperature.html", temp_types=temp_types)  # Your filename
 
+# Temperature AJAX
 @app.route("/api/temperature/types")
 def api_temperature_types():
     rows = get_temperature_rows()
@@ -251,34 +273,66 @@ def api_temperature_details():
     matches = [row for row in rows if row.get(TEMP_TYPE_COLUMN, "") == temp_type and row.get(CHAMBER_COLUMN, "") == chamber]
     return jsonify(matches)
 
-# Legacy routes (kept for backward compatibility)
-@app.route("/vortex-flow-meter", methods=["GET", "POST"])
-def vortex():
-    result = None
-    searched = False
-    if request.method == "POST":
-        searched = True
-        try:
-            flow = float(request.form["flow_rate"])
-            rows = get_main_rows("Vortex Flow Meter")
-            result = find_match(rows, flow)
-        except:
-            pass
-    return render_template("instruments/vortex_flow.html", result=result, searched=searched)
+# ---------- VORTEX FLOW METER ----------
+@app.route("/vortex-flow-meter")
+def vortex_flow_meter_page():
+    all_rows = get_vortex_rows()
+    sizes = sorted({row.get("size_mm", "") for row in all_rows if row.get("size_mm", "")})
+    return render_template("instruments/vortex_flow.html", sizes=sizes)
 
-@app.route("/control-valve", methods=["GET", "POST"])
-def valve():
-    result = None
-    searched = False
-    if request.method == "POST":
-        searched = True
-        try:
-            flow = float(request.form["flow_rate"])
-            rows = get_main_rows("Control Valve")
-            result = find_match(rows, flow)
-        except:
-            pass
-    return render_template("instruments/control_valve.html", result=result, searched=searched)
+@app.route("/api/vortex/sizes")
+def api_vortex_sizes():
+    rows = get_vortex_rows()
+    sizes = sorted({row.get("size_mm", "") for row in rows if row.get("size_mm", "")})
+    return jsonify(list(sizes))
+
+@app.route("/api/vortex/details")
+def api_vortex_details():
+    size = request.args.get("size", "").strip()
+    if not size: return jsonify([])
+    rows = get_vortex_rows()
+    matches = [row for row in rows if row.get("size_mm", "") == size]
+    return jsonify(matches)
+
+# ---------- CONTROL VALVE ----------
+@app.route("/control-valve")
+def control_valve_page():
+    all_rows = get_control_valve_rows()
+    valve_types = sorted({row.get("Valve_type", "") for row in all_rows if row.get("Valve_type", "")})
+    return render_template("instruments/control_valve.html", valve_types=valve_types)
+
+@app.route("/api/control/valve_types")
+def api_control_valve_types():
+    rows = get_control_valve_rows()
+    types = sorted({row.get("Valve_type", "") for row in rows if row.get("Valve_type", "")})
+    return jsonify(list(types))
+
+@app.route("/api/control/sizes")
+def api_control_sizes():
+    valve_type = request.args.get("valve_type", "").strip()
+    if not valve_type: return jsonify([])
+    rows = get_control_valve_rows()
+    sizes = {row.get("size_mm", "") for row in rows if row.get("Valve_type", "") == valve_type and row.get("size_mm", "")}
+    return jsonify(sorted(sizes))
+
+@app.route("/api/control/applications")
+def api_control_applications():
+    valve_type = request.args.get("valve_type", "").strip()
+    size = request.args.get("size", "").strip()
+    if not valve_type or not size: return jsonify([])
+    rows = get_control_valve_rows()
+    apps = {row.get("application", "") for row in rows if row.get("Valve_type", "") == valve_type and row.get("size_mm", "") == size and row.get("application", "")}
+    return jsonify(sorted(apps))
+
+@app.route("/api/control/details")
+def api_control_details():
+    valve_type = request.args.get("valve_type", "").strip()
+    size = request.args.get("size", "").strip()
+    app = request.args.get("application", "").strip()
+    if not all([valve_type, size, app]): return jsonify([])
+    rows = get_control_valve_rows()
+    matches = [row for row in rows if row.get("Valve_type", "") == valve_type and row.get("size_mm", "") == size and row.get("application", "") == app]
+    return jsonify(matches)
 
 # ================== ADMIN ==================
 ADMIN_USER = os.environ.get("ADMIN_USER", "admin")
