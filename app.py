@@ -30,10 +30,10 @@ def get_sheet(worksheet_name):
             raise ValueError(f"Worksheet '{worksheet_name}' not found in the spreadsheet.")
     return _sheet_cache[worksheet_name]
 
-# For legacy range-based search (if still needed)
+# For legacy range-based search
 def get_main_rows(instrument=None):
     try:
-        sheet = get_sheet("Sheet1")  # Change if your main tab has a different name
+        sheet = get_sheet("Sheet1")
         rows = sheet.get_all_records()
         if instrument:
             rows = [r for r in rows if str(r.get("Instrument", "")).strip() == instrument]
@@ -55,22 +55,17 @@ def get_magnetic_rows():
         return []
 
 # ================== TRANSMITTER ==================
+DIA_SEAL_COLUMN = "Dia seal: Integral, Dia seal: Remote non Integral"  # EXACT header name
+
 def get_transmitter_rows():
     try:
         sheet = get_sheet("transmitter")
         records = sheet.get_all_records()
         # Convert all values to strings safely
-        cleaned = []
-        for row in records:
-            cleaned_row = {}
-            for k, v in row.items():
-                if k == "Dia seal: Intergral, Dia seal: Remote non Integral":
-                    # Fix typo in header if present — map to correct key
-                    cleaned_row["Dia Seal Type"] = str(v).strip() if v not in ("", None) else ""
-                else:
-                    cleaned_row[k] = str(v).strip() if v not in ("", None) else ""
-            cleaned.append(cleaned_row)
-        return cleaned
+        return [
+            {k: str(v).strip() if v not in ("", None) else "" for k, v in row.items()}
+            for row in records
+        ]
     except Exception as e:
         print(f"Error loading transmitter tab: {e}")
         return []
@@ -140,7 +135,7 @@ def magnetic():
         searched=searched
     )
 
-# Magnetic AJAX
+# Magnetic AJAX endpoints (unchanged)
 @app.route("/api/magnetic/sizes")
 def api_magnetic_sizes():
     rows = get_magnetic_rows()
@@ -177,7 +172,7 @@ def api_magnetic_details():
     matches = [row for row in rows if row.get("Size", "") == size and row.get("Type", "") == type_ and row.get("Liner Material", "") == liner]
     return jsonify(matches)
 
-# ---------- TRANSMITTER (NEW MODERN VERSION) ----------
+# ---------- TRANSMITTER (MODERN DROPDOWN VERSION) ----------
 @app.route("/transmitter")
 def transmitter_page():
     all_rows = get_transmitter_rows()
@@ -197,7 +192,11 @@ def api_transmitter_dia_seal():
     if not type_val:
         return jsonify([])
     rows = get_transmitter_rows()
-    dia_seals = {row.get("Dia Seal Type", "") for row in rows if row.get("Type", "") == type_val and row.get("Dia Seal Type", "")}
+    dia_seals = {
+        row.get(DIA_SEAL_COLUMN, "")
+        for row in rows
+        if row.get("Type", "") == type_val and row.get(DIA_SEAL_COLUMN, "")
+    }
     return jsonify(sorted(dia_seals))
 
 @app.route("/api/transmitter/range_value")
@@ -207,7 +206,13 @@ def api_transmitter_range_value():
     if not type_val or not dia_seal:
         return jsonify([])
     rows = get_transmitter_rows()
-    ranges = {row.get("Range value", "") for row in rows if row.get("Type", "") == type_val and row.get("Dia Seal Type", "") == dia_seal and row.get("Range value", "")}
+    ranges = {
+        row.get("Range value", "")
+        for row in rows
+        if row.get("Type", "") == type_val
+        and row.get(DIA_SEAL_COLUMN, "") == dia_seal
+        and row.get("Range value", "")
+    }
     return jsonify(sorted(ranges))
 
 @app.route("/api/transmitter/range_unit")
@@ -218,7 +223,14 @@ def api_transmitter_range_unit():
     if not all([type_val, dia_seal, range_val]):
         return jsonify([])
     rows = get_transmitter_rows()
-    units = {row.get("Range in mmwcl or Kg/cm2", "") for row in rows if row.get("Type", "") == type_val and row.get("Dia Seal Type", "") == dia_seal and row.get("Range value", "") == range_val and row.get("Range in mmwcl or Kg/cm2", "")}
+    units = {
+        row.get("Range in mmwcl or Kg/cm2", "")
+        for row in rows
+        if row.get("Type", "") == type_val
+        and row.get(DIA_SEAL_COLUMN, "") == dia_seal
+        and row.get("Range value", "") == range_val
+        and row.get("Range in mmwcl or Kg/cm2", "")
+    }
     return jsonify(sorted(units))
 
 @app.route("/api/transmitter/details")
@@ -235,13 +247,13 @@ def api_transmitter_details():
     matches = [
         row for row in rows
         if row.get("Type", "") == type_val
-        and row.get("Dia Seal Type", "") == dia_seal
+        and row.get(DIA_SEAL_COLUMN, "") == dia_seal
         and row.get("Range value", "") == range_val
         and row.get("Range in mmwcl or Kg/cm2", "") == unit
     ]
     return jsonify(matches)
 
-# Keep other old routes for backward compatibility
+# Keep other legacy routes
 @app.route("/vortex-flow-meter", methods=["GET", "POST"])
 def vortex():
     result = None
