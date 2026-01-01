@@ -1,129 +1,218 @@
 {% extends "base.html" %}
 
 {% block content %}
-<h1>Magnetic Flow Meter Selection</h1>
+<div class="container py-5">
+    <h1 class="display-5 fw-bold text-center mb-5 text-primary">Magnetic Flow Meter Selection</h1>
 
-<!-- Optional: Keep old flow rate search if you want -->
-<form method="POST">
-    <label>Enter Flow Rate:</label>
-    <input type="number" name="flow_rate" step="0.01" required>
-    <button type="submit">Search by Flow Rate</button>
-</form>
+    <div class="row justify-content-center">
+        <div class="col-lg-8 col-xl-6">
+            <div class="card shadow-sm border-0">
+                <div class="card-body p-5">
+                    <h3 class="card-title text-center mb-4">Configure Your Meter</h3>
 
-{% if searched and result %}
-    <div class="result-card">
-        <h3>Recommended: {{ result.Model or 'N/A' }}</h3>
-        <p>Cost: {{ result.Cost or '-' }} | Supplier: {{ result.Supplier or '-' }}</p>
+                    <form id="selection-form">
+                        <!-- Size Dropdown -->
+                        <div class="mb-4">
+                            <label for="size" class="form-label fw-semibold">Pipe Size</label>
+                            <select class="form-select form-select-lg" id="size" required>
+                                <option value="">-- Choose Size --</option>
+                            </select>
+                            <div class="spinner-border spinner-border-sm text-primary mt-2 d-none" role="status" id="size-spinner">
+                                <span class="visually-hidden">Loading...</span>
+                            </div>
+                        </div>
+
+                        <!-- Type Dropdown -->
+                        <div class="mb-4">
+                            <label for="type" class="form-label fw-semibold">Type</label>
+                            <select class="form-select form-select-lg" id="type" disabled>
+                                <option value="">-- First select size --</option>
+                            </select>
+                        </div>
+
+                        <!-- Liner Material Dropdown -->
+                        <div class="mb-4">
+                            <label for="liner" class="form-label fw-semibold">Liner Material</label>
+                            <select class="form-select form-select-lg" id="liner" disabled>
+                                <option value="">-- First select type --</option>
+                            </select>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Results Section -->
+            <div id="results" class="mt-5"></div>
+        </div>
     </div>
-{% elif searched %}
-    <p>No match found for that flow rate.</p>
-{% endif %}
-
-<hr>
-
-<h2>Configure by Size, Type & Liner</h2>
-
-<div class="selection-box">
-    <label for="size">Size:</label>
-    <select id="size" name="size">
-        <option value="">-- Select Size --</option>
-    </select>
-
-    <br><br>
-
-    <label for="type">Type:</label>
-    <select id="type" name="type" disabled>
-        <option value="">-- First select Size --</option>
-    </select>
-
-    <br><br>
-
-    <label for="liner">Liner Material:</label>
-    <select id="liner" name="liner" disabled>
-        <option value="">-- First select Type --</option>
-    </select>
 </div>
 
-<div id="results" style="margin-top: 30px;"></div>
-
+<!-- Bootstrap 5 + jQuery -->
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
 <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+
 <script>
 $(document).ready(function() {
-    // Load sizes
-    $.get("/api/magnetic/sizes", function(sizes) {
-        sizes.forEach(function(size) {
-            $("#size").append(`<option value="${size}">${size}</option>`);
+    // Load sizes on page load
+    $('#size-spinner').removeClass('d-none');
+    $.get("/api/magnetic/sizes")
+        .done(function(sizes) {
+            sizes.forEach(function(size) {
+                $("#size").append(`<option value="${size}">${size}</option>`);
+            });
+        })
+        .always(function() {
+            $('#size-spinner').addClass('d-none');
         });
-    });
 
+    // Size changed
     $("#size").change(function() {
         const size = $(this).val();
-        $("#type").prop("disabled", true).empty().append('<option>-- Loading... --</option>');
-        $("#liner").prop("disabled", true).empty().append('<option>-- Select Type first --</option>');
+        resetDropdown("#type", "-- First select size --");
+        resetDropdown("#liner", "-- Select type first --");
         $("#results").empty();
 
         if (size) {
-            $.get("/api/magnetic/types", {size: size}, function(types) {
-                $("#type").empty().append('<option value="">-- Select Type --</option>');
-                types.forEach(t => $("#type").append(`<option value="${t}">${t}</option>`));
-                $("#type").prop("disabled", false);
-            });
+            loadOptions("/api/magnetic/types", {size: size}, "#type", "-- Select Type --");
         }
     });
 
+    // Type changed
     $("#type").change(function() {
         const size = $("#size").val();
         const type = $(this).val();
-        $("#liner").prop("disabled", true).empty().append('<option>-- Loading... --</option>');
+        resetDropdown("#liner", "-- Select type first --");
         $("#results").empty();
 
         if (type) {
-            $.get("/api/magnetic/liners", {size: size, type: type}, function(liners) {
-                $("#liner").empty().append('<option value="">-- Select Liner --</option>');
-                liners.forEach(l => $("#liner").append(`<option value="${l}">${l}</option>`));
-                $("#liner").prop("disabled", false);
-            });
+            loadOptions("/api/magnetic/liners", {size: size, type: type}, "#liner", "-- Select Liner Material --");
         }
     });
 
+    // Liner changed
     $("#liner").change(function() {
         const size = $("#size").val();
         const type = $("#type").val();
         const liner = $(this).val();
 
-        if (liner) {
-            $.get("/api/magnetic/details", {size: size, type: type, liner: liner}, function(data) {
-                $("#results").empty();
-                if (data.length === 0) {
-                    $("#results").html("<p>No matching configuration found.</p>");
-                    return;
-                }
+        $("#results").html(`
+            <div class="text-center py-5">
+                <div class="spinner-border text-primary" role="status">
+                    <span class="visually-hidden">Loading results...</span>
+                </div>
+            </div>
+        `);
 
-                let html = `<h3>Matching Configurations (${data.length})</h3><table class="table">`;
-                html += `<tr><th>Model</th><th>Cost</th><th>Supplier</th><th>Date</th><th>Other Details</th></tr>`;
-                data.forEach(row => {
-                    html += `<tr>
-                        <td>${row.Model || '-'}</td>
-                        <td>${row.Cost || '-'}</td>
-                        <td>${row.Supplier || '-'}</td>
-                        <td>${row.Date || '-'}</td>
-                        <td>${Object.entries(row).filter(([k]) => !['Model','Cost','Supplier','Date','Size','Type','Liner Material','Instrument'].includes(k)).map(([k,v]) => `<strong>${k}:</strong> ${v}`).join('<br>')}</td>
-                    </tr>`;
+        if (liner) {
+            $.get("/api/magnetic/details", {size: size, type: type, liner: liner})
+                .done(function(data) {
+                    $("#results").empty();
+
+                    if (data.length === 0) {
+                        $("#results").html(`
+                            <div class="alert alert-info text-center">
+                                <strong>No matching configurations found</strong> for the selected options.
+                            </div>
+                        `);
+                        return;
+                    }
+
+                    let html = `
+                        <h3 class="mb-4 text-primary">Available Configurations (${data.length})</h3>
+                        <div class="table-responsive">
+                            <table class="table table-hover align-middle">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th>Model</th>
+                                        <th>Cost</th>
+                                        <th>Supplier</th>
+                                        <th>Date</th>
+                                        <th>Details</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                    `;
+
+                    data.forEach(row => {
+                        const otherDetails = Object.entries(row)
+                            .filter(([k]) => !['Model','Cost','Supplier','Date','Size','Type','Liner Material','Instrument'].includes(k))
+                            .map(([k,v]) => `<strong>${k}:</strong> ${v || '-'}`)
+                            .join('<br>');
+
+                        html += `
+                            <tr>
+                                <td><strong>${row.Model || '-'}</strong></td>
+                                <td>${row.Cost || '-'}</td>
+                                <td>${row.Supplier || '-'}</td>
+                                <td>${row.Date || '-'}</td>
+                                <td>${otherDetails || '-'}</td>
+                            </tr>
+                        `;
+                    });
+
+                    html += `
+                                </tbody>
+                            </table>
+                        </div>
+                    `;
+
+                    $("#results").html(html);
+                })
+                .fail(function() {
+                    $("#results").html(`
+                        <div class="alert alert-danger">
+                            Error loading data. Please try again.
+                        </div>
+                    `);
                 });
-                html += `</table>`;
-                $("#results").html(html);
-            });
         } else {
             $("#results").empty();
         }
     });
+
+    // Helper functions
+    function resetDropdown(selector, placeholder) {
+        $(selector)
+            .prop("disabled", true)
+            .empty()
+            .append(`<option value="">${placeholder}</option>`);
+    }
+
+    function loadOptions(url, params, selector, placeholder) {
+        $(selector).prop("disabled", true).empty().append('<option>Loading...</option>');
+        $.get(url, params)
+            .done(function(options) {
+                $(selector).empty().append(`<option value="">${placeholder}</option>`);
+                options.forEach(opt => $(selector).append(`<option value="${opt}">${opt}</option>`));
+                $(selector).prop("disabled", false);
+            })
+            .fail(function() {
+                $(selector).empty().append(`<option value="">Error loading options</option>`);
+            });
+    }
 });
 </script>
 
 <style>
-.selection-box { max-width: 500px; padding: 20px; border: 1px solid #ccc; border-radius: 8px; background: #f9f9f9; }
-.table { width: 100%; border-collapse: collapse; margin-top: 20px; }
-.table th, .table td { border: 1px solid #ddd; padding: 10px; text-align: left; }
-.table th { background: #f0f0f0; }
+    .card {
+        border-radius: 16px;
+        transition: transform 0.2s;
+    }
+    .card:hover {
+        transform: translateY(-5px);
+    }
+    .form-select-lg {
+        border-radius: 12px;
+        padding: 0.75rem 1rem;
+    }
+    .table th {
+        background-color: #f8f9fa;
+        font-weight: 600;
+    }
+    @media (max-width: 576px) {
+        .display-5 {
+            font-size: 2.5rem;
+        }
+    }
 </style>
 {% endblock %}
