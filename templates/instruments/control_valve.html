@@ -1,43 +1,131 @@
 {% extends "base.html" %}
+
 {% block content %}
+<div class="container py-5">
+    <h1 class="display-5 fw-bold text-center mb-5 text-primary">Control Valve Selection</h1>
 
-<h3 class="mb-3">Control Valve Selection</h3>
+    <div class="row justify-content-center">
+        <div class="col-lg-8 col-xl-6">
+            <div class="card shadow-sm border-0">
+                <div class="card-body p-5">
+                    <h3 class="card-title text-center mb-4">Configure Valve</h3>
 
-<p class="text-muted">
-Used for modulating flow based on process control requirements.
-</p>
+                    <div class="mb-4">
+                        <label for="valve_type" class="form-label fw-semibold">Valve Type</label>
+                        <select class="form-select form-select-lg" id="valve_type" required>
+                            <option value="">-- Choose Type --</option>
+                        </select>
+                        <div class="spinner-border spinner-border-sm text-primary mt-2 d-none" id="type-spinner"></div>
+                    </div>
 
-<div class="card p-4 shadow-sm mb-4">
-  <form method="post">
-    <div class="row g-3">
+                    <div class="mb-4">
+                        <label for="size" class="form-label fw-semibold">Size (mm)</label>
+                        <select class="form-select form-select-lg" id="size" disabled>
+                            <option value="">-- First select Valve Type --</option>
+                        </select>
+                    </div>
 
-      <div class="col-md-6">
-        <label class="form-label">Flow Rate</label>
-        <input type="number" step="any" name="flow" class="form-control" required>
-      </div>
+                    <div class="mb-4">
+                        <label for="application" class="form-label fw-semibold">Application</label>
+                        <select class="form-select form-select-lg" id="application" disabled>
+                            <option value="">-- First select Size --</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
 
-      <div class="col-md-6 d-flex align-items-end">
-        <button class="btn btn-dark w-100">Auto-Recommend</button>
-      </div>
-
+            <div id="results" class="mt-5"></div>
+        </div>
     </div>
-  </form>
 </div>
 
-{% if result %}
-<div class="card border-success p-4 shadow-sm">
-  <h5 class="text-success">Recommended Control Valve</h5>
-  <table class="table table-bordered mt-3">
-    <tr><th>Valve Type</th><td>{{ result.Type }}</td></tr>
-    <tr><th>Size</th><td>{{ result.Size }}</td></tr>
-    <tr><th>Body Material</th><td>{{ result.Material }}</td></tr>
-    <tr><th>Cost</th><td>{{ result.Cost }}</td></tr>
-  </table>
-</div>
-{% elif searched %}
-<div class="alert alert-warning">No suitable control valve found.</div>
-{% endif %}
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
 
-<a href="/" class="btn btn-secondary mt-4">⬅ Back</a>
+<script>
+$(document).ready(function() {
+    $('#type-spinner').removeClass('d-none');
+    $.get("/api/control/valve_types")
+        .done(function(types) {
+            types.forEach(t => $("#valve_type").append(`<option value="${t}">${t}</option>`));
+        })
+        .always(() => $('#type-spinner').addClass('d-none'));
 
+    $("#valve_type").change(function() {
+        const type = $(this).val();
+        reset("#size", "-- First select Valve Type --");
+        reset("#application", "-- Select Size first --");
+        $("#results").empty();
+
+        if (type) loadOptions("/api/control/sizes", {valve_type: type}, "#size", "-- Select Size --");
+    });
+
+    $("#size").change(function() {
+        const type = $("#valve_type").val();
+        const size = $(this).val();
+        reset("#application", "-- Select Size first --");
+        $("#results").empty();
+
+        if (size) loadOptions("/api/control/applications", {valve_type: type, size: size}, "#application", "-- Select Application --");
+    });
+
+    $("#application").change(function() {
+        const type = $("#valve_type").val();
+        const size = $("#size").val();
+        const app = $(this).val();
+
+        if (app) {
+            $("#results").html(`<div class="text-center py-5"><div class="spinner-border text-primary"></div></div>`);
+            $.get("/api/control/details", {valve_type: type, size: size, application: app})
+                .done(function(data) {
+                    $("#results").empty();
+                    if (data.length === 0) {
+                        $("#results").html(`<div class="alert alert-info text-center">No control valve found for this configuration.</div>`);
+                        return;
+                    }
+                    let html = `<h3 class="mb-4 text-primary">Available Valves (${data.length})</h3>
+                                <div class="table-responsive">
+                                    <table class="table table-hover">
+                                        <thead class="table-light">
+                                            <tr><th>Cost</th><th>Supplier</th><th>Date</th><th>Remarks</th></tr>
+                                        </thead>
+                                        <tbody>`;
+                    data.forEach(row => {
+                        html += `<tr>
+                            <td><strong>${row.cost || row.Cost || '-'}</strong></td>
+                            <td>${row.supplier || row.Supplier || '-'}</td>
+                            <td>${row.date || row.Date || '-'}</td>
+                            <td>${row.remarks || row.Remarks || '-'}</td>
+                        </tr>`;
+                    });
+                    html += `</tbody></table></div>`;
+                    $("#results").html(html);
+                });
+        } else {
+            $("#results").empty();
+        }
+    });
+
+    function reset(sel, text) {
+        $(sel).prop("disabled", true).empty().append(`<option value="">${text}</option>`);
+    }
+
+    function loadOptions(url, params, sel, placeholder) {
+        $(sel).prop("disabled", true).empty().append('<option>Loading...</option>');
+        $.get(url, params)
+            .done(function(opts) {
+                $(sel).empty().append(`<option value="">${placeholder}</option>`);
+                opts.forEach(o => $(sel).append(`<option value="${o}">${o}</option>`));
+                $(sel).prop("disabled", false);
+            });
+    }
+});
+</script>
+
+<style>
+    .card { border-radius: 16px; transition: transform 0.2s; }
+    .card:hover { transform: translateY(-5px); }
+    .form-select-lg { border-radius: 12px; padding: 0.75rem 1rem; }
+    .table th { font-weight: 600; background: #f8f9fa; }
+</style>
 {% endblock %}
