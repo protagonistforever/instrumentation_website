@@ -31,18 +31,18 @@
             margin: 0;
         }
 
-        /* Navbar */
-        .navbar {
-            background: rgba(15, 15, 26, 0.95) !important;
+        /* Compact Header - Smaller & Not Fixed */
+        .site-header {
+            background: rgba(15, 15, 26, 0.95);
             backdrop-filter: blur(12px);
             border-bottom: 1px solid var(--border-color);
-            padding: 1rem 0;
+            padding: 0.8rem 0; /* Reduced padding */
         }
 
         .navbar-brand {
             font-family: 'Space Grotesk', sans-serif;
             font-weight: 700;
-            font-size: 1.8rem;
+            font-size: 1.5rem; /* Smaller than before */
             color: #fff;
         }
 
@@ -55,8 +55,9 @@
             border: 2px solid var(--accent-pink);
             color: var(--accent-pink);
             font-weight: 600;
-            padding: 0.5rem 1.5rem;
+            padding: 0.4rem 1.2rem; /* Smaller button */
             border-radius: 50px;
+            font-size: 0.9rem;
             transition: all 0.3s ease;
         }
 
@@ -66,9 +67,9 @@
             transform: translateY(-2px);
         }
 
-        /* Main Content */
+        /* Main Content - Starts closer to top */
         .container {
-            padding-top: 6rem;
+            padding-top: 2rem; /* Reduced from 6rem */
             padding-bottom: 4rem;
         }
 
@@ -89,7 +90,7 @@
         }
 
         .instrument-card .card-body {
-            padding: 2.5rem;
+            padding: 2rem;
             text-align: center;
         }
 
@@ -97,7 +98,8 @@
             font-family: 'Space Grotesk', sans-serif;
             font-weight: 600;
             color: #fff;
-            margin-bottom: 1.5rem;
+            margin-bottom: 1.2rem;
+            font-size: 1.3rem;
         }
 
         .btn-select {
@@ -105,9 +107,10 @@
             border: 2px solid var(--accent-pink);
             color: var(--accent-pink);
             font-weight: 600;
-            padding: 0.8rem 2rem;
+            padding: 0.7rem 1.8rem;
             border-radius: 50px;
             transition: all 0.3s ease;
+            font-size: 1rem;
         }
 
         .btn-select:hover {
@@ -181,17 +184,17 @@
 </head>
 <body class="d-flex flex-column min-vh-100">
 
-    <!-- Navbar -->
-    <nav class="navbar navbar-expand-lg navbar-dark fixed-top">
+    <!-- Compact Non-Fixed Header -->
+    <header class="site-header">
         <div class="container">
-            <a class="navbar-brand" href="/">
-                Instrumentation <span>Cost Data-Bank</span>
-            </a>
-            <div class="ms-auto">
+            <div class="d-flex justify-content-between align-items-center">
+                <a class="navbar-brand mb-0" href="/">
+                    Instrumentation <span>Cost Data-Bank</span>
+                </a>
                 <a href="/admin" class="btn btn-admin">Admin</a>
             </div>
         </div>
-    </nav>
+    </header>
 
     <!-- Main Content -->
     <main class="flex-grow-1">
