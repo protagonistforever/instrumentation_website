@@ -1,0 +1,70 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container py-5">
+    <h1 class="display-5 fw-bold text-center mb-5 text-primary">Extension / Compensation Cable</h1>
+    <div class="row justify-content-center">
+        <div class="col-lg-8 col-xl-6">
+            <div class="card shadow-sm border-0">
+                <div class="card-body p-5">
+                    <h3 class="card-title text-center mb-4">Configure Cable</h3>
+                    <div class="mb-4">
+                        <label class="form-label fw-semibold">Type</label>
+                        <select class="form-select form-select-lg" id="type"><option>-- Choose Type --</option></select>
+                        <div class="spinner-border spinner-border-sm text-primary mt-2 d-none" id="spinner"></div>
+                    </div>
+                    <div class="mb-4"><label class="form-label fw-semibold">T/C Type</label><select class="form-select form-select-lg" id="tc_type" disabled><option>-- First select Type --</option></select></div>
+                    <div class="mb-4"><label class="form-label fw-semibold">Size (strand/AWG)</label><select class="form-select form-select-lg" id="size" disabled><option>-- First select T/C Type --</option></select></div>
+                    <div class="mb-4"><label class="form-label fw-semibold">Pair</label><select class="form-select form-select-lg" id="pair" disabled><option>-- First select Size --</option></select></div>
+                    <div class="mb-4"><label class="form-label fw-semibold">Sheath</label><select class="form-select form-select-lg" id="sheath" disabled><option>-- First select Pair --</option></select></div>
+                </div>
+            </div>
+            <div id="results" class="mt-5"></div>
+        </div>
+    </div>
+</div>
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script>
+$(document).ready(function() {
+    $('#spinner').removeClass('d-none');
+    $.get("/api/extension/types").done(function(types) {
+        types.forEach(t => $("#type").append(`<option value="${t}">${t}</option>`));
+    }).always(() => $('#spinner').addClass('d-none'));
+
+    $("#type").change(function() { chain("/api/extension/tc_types", {type: $(this).val()}, "#tc_type", "-- Select T/C Type --"); });
+    $("#tc_type").change(function() { chain("/api/extension/sizes", {type: $("#type").val(), tc_type: $(this).val()}, "#size", "-- Select Size --"); });
+    $("#size").change(function() { chain("/api/extension/pairs", {type: $("#type").val(), tc_type: $("#tc_type").val(), size: $(this).val()}, "#pair", "-- Select Pair --"); });
+    $("#pair").change(function() { chain("/api/extension/sheaths", {type: $("#type").val(), tc_type: $("#tc_type").val(), size: $("#size").val(), pair: $(this).val()}, "#sheath", "-- Select Sheath --"); });
+    $("#sheath").change(function() {
+        const params = {type: $("#type").val(), tc_type: $("#tc_type").val(), size: $("#size").val(), pair: $("#pair").val(), sheath: $(this).val()};
+        showDetails("/api/extension/details", params, "Extension Cable");
+    });
+
+    function chain(url, params, sel, placeholder) {
+        $(sel).nextAll('select').prop("disabled", true).empty().append('<option>-- Select previous --</option>');
+        $("#results").empty();
+        if (Object.values(params).every(v => v)) load(url, params, sel, placeholder);
+    }
+    function load(url, params, sel, placeholder) {
+        $(sel).prop("disabled", true).empty().append('<option>Loading...</option>');
+        $.get(url, params).done(function(opts) {
+            $(sel).empty().append(`<option value="">${placeholder}</option>`);
+            opts.forEach(o => $(sel).append(`<option value="${o}">${o}</option>`));
+            $(sel).prop("disabled", false);
+        });
+    }
+    function showDetails(url, params, title) {
+        $("#results").html('<div class="text-center py-5"><div class="spinner-border text-primary"></div></div>');
+        $.get(url, params).done(function(data) {
+            $("#results").empty();
+            if (data.length === 0) { $("#results").html('<div class="alert alert-info text-center">No cable found.</div>'); return; }
+            let html = `<h3 class="mb-4 text-primary">${title}s (${data.length})</h3><div class="table-responsive"><table class="table table-hover"><thead class="table-light"><tr><th>Cost</th><th>Supplier</th><th>Date</th><th>Remarks</th></tr></thead><tbody>`;
+            data.forEach(r => html += `<tr><td><strong>${r.Cost || '-'}</strong></td><td>${r.Supplier || '-'}</td><td>${r.Date || '-'}</td><td>${r.Remarks || '-'}</td></tr>`);
+            html += '</tbody></table></div>';
+            $("#results").html(html);
+        });
+    }
+});
+</script>
+<style>.card{border-radius:16px;transition:.2s}.card:hover{transform:translateY(-5px)}.form-select-lg{border-radius:12px;padding:.75rem 1rem}.table th{font-weight:600;background:#f8f9fa}</style>
+{% endblock %}
