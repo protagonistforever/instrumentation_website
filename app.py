@@ -366,6 +366,218 @@ def add():
 def logout():
     session.clear()
     return redirect("/")
+# ================== CABLE INSTRUMENTS ==================
+
+# 1. Signal Pair Cables
+def get_signal_pair_rows():
+    try:
+        sheet = get_sheet("Signal Pair Cables")
+        records = sheet.get_all_records()
+        return [{k: str(v).strip() if v not in ("", None) else "" for k, v in row.items()} for row in records]
+    except Exception as e:
+        print(f"Error loading Signal Pair Cables tab: {e}")
+        return []
+
+# 2. Signal Core Cables
+def get_signal_core_rows():
+    try:
+        sheet = get_sheet("Signal Core Cables")
+        records = sheet.get_all_records()
+        return [{k: str(v).strip() if v not in ("", None) else "" for k, v in row.items()} for row in records]
+    except Exception as e:
+        print(f"Error loading Signal Core Cables tab: {e}")
+        return []
+
+# 3. Signal Triad Cables
+def get_signal_triad_rows():
+    try:
+        sheet = get_sheet("Signal Triad Cables")
+        records = sheet.get_all_records()
+        return [{k: str(v).strip() if v not in ("", None) else "" for k, v in row.items()} for row in records]
+    except Exception as e:
+        print(f"Error loading Signal Triad Cables tab: {e}")
+        return []
+
+# 4. Extension/Compensation Cable
+def get_extension_cable_rows():
+    try:
+        sheet = get_sheet("Extension/ Compensation cable")
+        records = sheet.get_all_records()
+        return [{k: str(v).strip() if v not in ("", None) else "" for k, v in row.items()} for row in records]
+    except Exception as e:
+        print(f"Error loading Extension/ Compensation cable tab: {e}")
+        return []
+
+# ================== NEW ROUTES ==================
+
+# ---------- SIGNAL PAIR CABLES ----------
+@app.route("/signal-pair-cables")
+def signal_pair_cables_page():
+    rows = get_signal_pair_rows()
+    sizes = sorted({r.get("Size", "") for r in rows if r.get("Size", "")})
+    return render_template("instruments/signal_pair_cables.html", sizes=sizes)
+
+@app.route("/api/signal-pair/sizes")
+def api_signal_pair_sizes():
+    rows = get_signal_pair_rows()
+    return jsonify(sorted({r.get("Size", "") for r in rows if r.get("Size", "")}))
+
+@app.route("/api/signal-pair/pairs")
+def api_signal_pair_pairs():
+    size = request.args.get("size", "").strip()
+    if not size: return jsonify([])
+    rows = get_signal_pair_rows()
+    return jsonify(sorted({r.get("Pair", "") for r in rows if r.get("Size", "") == size and r.get("Pair", "")}))
+
+@app.route("/api/signal-pair/sheaths")
+def api_signal_pair_sheaths():
+    size = request.args.get("size", "").strip()
+    pair = request.args.get("pair", "").strip()
+    if not size or not pair: return jsonify([])
+    rows = get_signal_pair_rows()
+    return jsonify(sorted({r.get("Outer sheath", "") for r in rows if r.get("Size", "") == size and r.get("Pair", "") == pair and r.get("Outer sheath", "")}))
+
+@app.route("/api/signal-pair/details")
+def api_signal_pair_details():
+    size = request.args.get("size", "").strip()
+    pair = request.args.get("pair", "").strip()
+    sheath = request.args.get("sheath", "").strip()
+    if not all([size, pair, sheath]): return jsonify([])
+    rows = get_signal_pair_rows()
+    matches = [r for r in rows if r.get("Size", "") == size and r.get("Pair", "") == pair and r.get("Outer sheath", "") == sheath]
+    return jsonify(matches)
+
+# ---------- SIGNAL CORE CABLES ----------
+@app.route("/signal-core-cables")
+def signal_core_cables_page():
+    rows = get_signal_core_rows()
+    sizes = sorted({r.get("Size", "") for r in rows if r.get("Size", "")})
+    return render_template("instruments/signal_core_cables.html", sizes=sizes)
+
+@app.route("/api/signal-core/sizes")
+def api_signal_core_sizes():
+    rows = get_signal_core_rows()
+    return jsonify(sorted({r.get("Size", "") for r in rows if r.get("Size", "")}))
+
+@app.route("/api/signal-core/cores")
+def api_signal_core_cores():
+    size = request.args.get("size", "").strip()
+    if not size: return jsonify([])
+    rows = get_signal_core_rows()
+    return jsonify(sorted({r.get("Core", "") for r in rows if r.get("Size", "") == size and r.get("Core", "")}))
+
+@app.route("/api/signal-core/sheaths")
+def api_signal_core_sheaths():
+    size = request.args.get("size", "").strip()
+    core = request.args.get("core", "").strip()
+    if not size or not core: return jsonify([])
+    rows = get_signal_core_rows()
+    return jsonify(sorted({r.get("Outer sheath", "") for r in rows if r.get("Size", "") == size and r.get("Core", "") == core and r.get("Outer sheath", "")}))
+
+@app.route("/api/signal-core/details")
+def api_signal_core_details():
+    size = request.args.get("size", "").strip()
+    core = request.args.get("core", "").strip()
+    sheath = request.args.get("sheath", "").strip()
+    if not all([size, core, sheath]): return jsonify([])
+    rows = get_signal_core_rows()
+    matches = [r for r in rows if r.get("Size", "") == size and r.get("Core", "") == core and r.get("Outer sheath", "") == sheath]
+    return jsonify(matches)
+
+# ---------- SIGNAL TRIAD CABLES ----------
+@app.route("/signal-triad-cables")
+def signal_triad_cables_page():
+    rows = get_signal_triad_rows()
+    sizes = sorted({r.get("Size", "") for r in rows if r.get("Size", "")})
+    return render_template("instruments/signal_triad_cables.html", sizes=sizes)
+
+@app.route("/api/signal-triad/sizes")
+def api_signal_triad_sizes():
+    rows = get_signal_triad_rows()
+    return jsonify(sorted({r.get("Size", "") for r in rows if r.get("Size", "")}))
+
+@app.route("/api/signal-triad/pairs")
+def api_signal_triad_pairs():
+    size = request.args.get("size", "").strip()
+    if not size: return jsonify([])
+    rows = get_signal_triad_rows()
+    return jsonify(sorted({r.get("Pair", "") for r in rows if r.get("Size", "") == size and r.get("Pair", "")}))
+
+@app.route("/api/signal-triad/sheaths")
+def api_signal_triad_sheaths():
+    size = request.args.get("size", "").strip()
+    pair = request.args.get("pair", "").strip()
+    if not size or not pair: return jsonify([])
+    rows = get_signal_triad_rows()
+    return jsonify(sorted({r.get("Outer sheath", "") for r in rows if r.get("Size", "") == size and r.get("Pair", "") == pair and r.get("Outer sheath", "")}))
+
+@app.route("/api/signal-triad/details")
+def api_signal_triad_details():
+    size = request.args.get("size", "").strip()
+    pair = request.args.get("pair", "").strip()
+    sheath = request.args.get("sheath", "").strip()
+    if not all([size, pair, sheath]): return jsonify([])
+    rows = get_signal_triad_rows()
+    matches = [r for r in rows if r.get("Size", "") == size and r.get("Pair", "") == pair and r.get("Outer sheath", "") == sheath]
+    return jsonify(matches)
+
+# ---------- EXTENSION/COMPENSATION CABLE ----------
+@app.route("/extension-compensation-cable")
+def extension_cable_page():
+    rows = get_extension_cable_rows()
+    types = sorted({r.get("Type", "") for r in rows if r.get("Type", "")})
+    return render_template("instruments/extension_compensation_cable.html", types=types)
+
+@app.route("/api/extension/types")
+def api_extension_types():
+    rows = get_extension_cable_rows()
+    return jsonify(sorted({r.get("Type", "") for r in rows if r.get("Type", "")}))
+
+@app.route("/api/extension/tc_types")
+def api_extension_tc_types():
+    type_val = request.args.get("type", "").strip()
+    if not type_val: return jsonify([])
+    rows = get_extension_cable_rows()
+    return jsonify(sorted({r.get("T/C Type", "") for r in rows if r.get("Type", "") == type_val and r.get("T/C Type", "")}))
+
+@app.route("/api/extension/sizes")
+def api_extension_sizes():
+    type_val = request.args.get("type", "").strip()
+    tc_type = request.args.get("tc_type", "").strip()
+    if not type_val or not tc_type: return jsonify([])
+    rows = get_extension_cable_rows()
+    return jsonify(sorted({r.get("Size in strand/ AWG", "") for r in rows if r.get("Type", "") == type_val and r.get("T/C Type", "") == tc_type and r.get("Size in strand/ AWG", "")}))
+
+@app.route("/api/extension/pairs")
+def api_extension_pairs():
+    type_val = request.args.get("type", "").strip()
+    tc_type = request.args.get("tc_type", "").strip()
+    size = request.args.get("size", "").strip()
+    if not all([type_val, tc_type, size]): return jsonify([])
+    rows = get_extension_cable_rows()
+    return jsonify(sorted({r.get("Pair", "") for r in rows if r.get("Type", "") == type_val and r.get("T/C Type", "") == tc_type and r.get("Size in strand/ AWG", "") == size and r.get("Pair", "")}))
+
+@app.route("/api/extension/sheaths")
+def api_extension_sheaths():
+    type_val = request.args.get("type", "").strip()
+    tc_type = request.args.get("tc_type", "").strip()
+    size = request.args.get("size", "").strip()
+    pair = request.args.get("pair", "").strip()
+    if not all([type_val, tc_type, size, pair]): return jsonify([])
+    rows = get_extension_cable_rows()
+    return jsonify(sorted({r.get("Sheath", "") for r in rows if r.get("Type", "") == type_val and r.get("T/C Type", "") == tc_type and r.get("Size in strand/ AWG", "") == size and r.get("Pair", "") == pair and r.get("Sheath", "")}))
+
+@app.route("/api/extension/details")
+def api_extension_details():
+    type_val = request.args.get("type", "").strip()
+    tc_type = request.args.get("tc_type", "").strip()
+    size = request.args.get("size", "").strip()
+    pair = request.args.get("pair", "").strip()
+    sheath = request.args.get("sheath", "").strip()
+    if not all([type_val, tc_type, size, pair, sheath]): return jsonify([])
+    rows = get_extension_cable_rows()
+    matches = [r for r in rows if r.get("Type", "") == type_val and r.get("T/C Type", "") == tc_type and r.get("Size in strand/ AWG", "") == size and r.get("Pair", "") == pair and r.get("Sheath", "") == sheath]
+    return jsonify(matches)
 
 # ================== SECURITY HEADERS ==================
 @app.after_request
