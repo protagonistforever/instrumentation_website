@@ -586,6 +586,43 @@ def add_headers(resp):
     resp.headers["X-Frame-Options"] = "DENY"
     resp.headers["Cache-Control"] = "no-store"
     return resp
+# ================== FLOW METER (formerly Vortex) ==================
+def get_flow_meter_rows():
+    try:
+        sheet = get_sheet("vortex_flow_meter")
+        records = sheet.get_all_records()
+        return [{k: str(v).strip() if v not in ("", None) else "" for k, v in row.items()} for row in records]
+    except Exception as e:
+        print(f"Error loading vortex_flow_meter tab: {e}")
+        return []
+
+# ---------- FLOW METER ----------
+@app.route("/flow-meter")
+def flow_meter_page():
+    rows = get_flow_meter_rows()
+    types = sorted({r.get("Type", "") for r in rows if r.get("Type", "")})
+    return render_template("instruments/flow_meter.html", types=types)
+
+@app.route("/api/flow/types")
+def api_flow_types():
+    rows = get_flow_meter_rows()
+    return jsonify(sorted({r.get("Type", "") for r in rows if r.get("Type", "")}))
+
+@app.route("/api/flow/sizes")
+def api_flow_sizes():
+    type_val = request.args.get("type", "").strip()
+    if not type_val: return jsonify([])
+    rows = get_flow_meter_rows()
+    return jsonify(sorted({r.get("size_mm", "") for r in rows if r.get("Type", "") == type_val and r.get("size_mm", "")}))
+
+@app.route("/api/flow/details")
+def api_flow_details():
+    type_val = request.args.get("type", "").strip()
+    size = request.args.get("size", "").strip()
+    if not all([type_val, size]): return jsonify([])
+    rows = get_flow_meter_rows()
+    matches = [r for r in rows if r.get("Type", "") == type_val and r.get("size_mm", "") == size]
+    return jsonify(matches)
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000)
