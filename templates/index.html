@@ -7,16 +7,12 @@
     </h1>
 
     <div class="row g-4">
-        {% set instruments = [
+        {% set instrument_list = [
             ("Magnetic Flow Meter", "/magnetic-flow-meter"),
             ("Flow Meter", "/flow-meter"),
             ("Transmitter", "/transmitter"),
             ("Temperature Transmitter", "/temperature-transmitter"),
             ("Control Valve", "/control-valve"),
-            ("Signal Pair Cables", "/signal-pair-cables"),
-            ("Signal Core Cables", "/signal-core-cables"),
-            ("Signal Triad Cables", "/signal-triad-cables"),
-            ("Extension/Compensation Cable", "/extension-compensation-cable")
             ("Pressure & Differential Pressure Gauges", "/pg-dpg"),
             ("Pressure & Differential Pressure Switches", "/ps-dps"),
             ("Analysers", "/analysers"),
@@ -26,15 +22,19 @@
             ("Level Transmitter", "/level-transmitter"),
             ("Level & Flow Switch", "/level-flow-switch"),
             ("Temperature Elements", "/temperature-elements"),
-            ("Misc Instruments", "/misc-instruments")
+            ("Misc Instruments", "/misc-instruments"),
+            ("Signal Pair Cables", "/signal-pair-cables"),
+            ("Signal Core Cables", "/signal-core-cables"),
+            ("Signal Triad Cables", "/signal-triad-cables"),
+            ("Extension/Compensation Cable", "/extension-compensation-cable")
         ] %}
 
-        {% for name, link in instruments %}
+        {% for name, link in instrument_list %}
         <div class="col-lg-4 col-md-6">
-            <div class="card shadow-sm h-100 border-0 text-center">
+            <div class="card shadow-sm h-100 border-0 text-center instrument-card">
                 <div class="card-body d-flex flex-column justify-content-center py-5">
                     <h5 class="card-title fw-semibold">{{ name }}</h5>
-                    <a href="{{ link }}" class="btn btn-primary btn-lg mt-4 px-5">Select</a>
+                    <a href="{{ link }}" class="btn btn-select mt-4 px-5">Select</a>
                 </div>
             </div>
         </div>
