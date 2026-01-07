@@ -1,0 +1,78 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container py-5">
+    <h1 class="display-5 fw-bold text-center mb-5 text-primary">Pressure & Differential Pressure Switches</h1>
+
+    <div class="row justify-content-center">
+        <div class="col-lg-8 col-xl-6">
+            <div class="card shadow-sm border-0">
+                <div class="card-body p-5">
+                    <h3 class="card-title text-center mb-4">Configure Switch</h3>
+
+                    <div class="mb-4">
+                        <label class="form-label fw-semibold">Type</label>
+                        <select class="form-select form-select-lg" id="type"><option>-- Choose Type --</option></select>
+                        <div class="spinner-border spinner-border-sm text-primary mt-2 d-none" id="type-spinner"></div>
+                    </div>
+                    <div class="mb-4"><label class="form-label fw-semibold">Accessories</label><select class="form-select form-select-lg" id="accessories" disabled><option>-- First select Type --</option></select></div>
+                </div>
+            </div>
+            <div id="results" class="mt-5"></div>
+        </div>
+    </div>
+</div>
+
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+
+<script>
+$(document).ready(function() {
+    $('#type-spinner').removeClass('d-none');
+    $.get("/api/ps-dps/types").done(function(opts) {
+        opts.forEach(o => $("#type").append(`<option value="${o}">${o}</option>`));
+    }).always(() => $('#type-spinner').addClass('d-none'));
+
+    $("#type").change(function() {
+        const type = $(this).val();
+        $("#accessories").prop("disabled", true).empty().append('<option>-- Loading... --</option>');
+        $("#results").empty();
+        if (type) {
+            $.get("/api/ps-dps/accessories", {type: type}).done(function(opts) {
+                $("#accessories").empty().append('<option value="">-- Select Accessories --</option>');
+                opts.forEach(o => $("#accessories").append(`<option value="${o}">${o}</option>`));
+                $("#accessories").prop("disabled", false);
+            });
+        }
+    });
+
+    $("#accessories").change(function() {
+        const type = $("#type").val();
+        const accessories = $(this).val();
+        if (accessories) {
+            $("#results").html('<div class="text-center py-5"><div class="spinner-border text-primary"></div></div>');
+            $.get("/api/ps-dps/details", {type: type, accessories: accessories}).done(function(data) {
+                $("#results").empty();
+                if (data.length === 0) {
+                    $("#results").html('<div class="alert alert-info text-center">No matching switch found.</div>');
+                    return;
+                }
+                let html = `<h3 class="mb-4 text-primary">PS/DPS Switches (${data.length})</h3><div class="table-responsive"><table class="table table-hover"><thead class="table-light"><tr><th>Cost</th><th>Supplier</th><th>Date</th><th>Remarks</th></tr></thead><tbody>`;
+                data.forEach(r => html += `<tr><td><strong>${r.cost || r.Cost || '-'}</strong></td><td>${r.supplier || r.Supplier || '-'}</td><td>${r.date || r.Date || '-'}</td><td>${r.remarks || r.Remarks || '-'}</td></tr>`);
+                html += '</tbody></table></div>';
+                $("#results").html(html);
+            });
+        } else {
+            $("#results").empty();
+        }
+    });
+});
+</script>
+
+<style>
+    .card { border-radius: 16px; transition: transform 0.2s; }
+    .card:hover { transform: translateY(-5px); }
+    .form-select-lg { border-radius: 12px; padding: 0.75rem 1rem; }
+    .table th { font-weight: 600; background: #f8f9fa; }
+</style>
+{% endblock %}
