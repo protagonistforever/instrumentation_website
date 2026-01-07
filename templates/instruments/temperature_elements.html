@@ -1,0 +1,83 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container py-5">
+    <h1 class="display-5 fw-bold text-center mb-5 text-primary">Temperature Elements</h1>
+
+    <div class="row justify-content-center">
+        <div class="col-lg-8 col-xl-6">
+            <div class="card shadow-sm border-0">
+                <div class="card-body p-5">
+                    <h3 class="card-title text-center mb-4">Configure Element</h3>
+
+                    <div class="mb-4">
+                        <label class="form-label fw-semibold">Type 1</label>
+                        <select class="form-select form-select-lg" id="type1"><option>-- Choose Type 1 --</option></select>
+                        <div class="spinner-border spinner-border-sm text-primary mt-2 d-none" id="type1-spinner"></div>
+                    </div>
+                    <div class="mb-4"><label class="form-label fw-semibold">Type 2</label><select class="form-select form-select-lg" id="type2" disabled><option>-- First select Type 1 --</option></select></div>
+                    <div class="mb-4"><label class="form-label fw-semibold">Type 3</label><select class="form-select form-select-lg" id="type3" disabled><option>-- First select Type 2 --</option></select></div>
+                    <div class="mb-4"><label class="form-label fw-semibold">MOC</label><select class="form-select form-select-lg" id="moc" disabled><option>-- First select Type 3 --</option></select></div>
+                    <div class="mb-4"><label class="form-label fw-semibold">Insertion Length</label><select class="form-select form-select-lg" id="insertion" disabled><option>-- First select MOC --</option></select></div>
+                </div>
+            </div>
+            <div id="results" class="mt-5"></div>
+        </div>
+    </div>
+</div>
+
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+
+<script>
+$(document).ready(function() {
+    $('#type1-spinner').removeClass('d-none');
+    $.get("/api/temperature-elements/type1").done(function(opts) {
+        opts.forEach(o => $("#type1").append(`<option value="${o}">${o}</option>`));
+    }).always(() => $('#type1-spinner').addClass('d-none'));
+
+    $("#type1").change(() => chain("/api/temperature-elements/type2", {type1: $("#type1").val()}, "#type2", "-- Select Type 2 --"));
+    $("#type2").change(() => chain("/api/temperature-elements/type3", {type1: $("#type1").val(), type2: $("#type2").val()}, "#type3", "-- Select Type 3 --"));
+    $("#type3").change(() => chain("/api/temperature-elements/moc", {type1: $("#type1").val(), type2: $("#type2").val(), type3: $("#type3").val()}, "#moc", "-- Select MOC --"));
+    $("#moc").change(() => chain("/api/temperature-elements/insertion", {type1: $("#type1").val(), type2: $("#type2").val(), type3: $("#type3").val(), moc: $("#moc").val()}, "#insertion", "-- Select Insertion Length --"));
+    $("#insertion").change(() => showDetails("/api/temperature-elements/details", {type1: $("#type1").val(), type2: $("#type2").val(), type3: $("#type3").val(), moc: $("#moc").val(), insertion: $("#insertion").val()}, "Temperature Element"));
+
+    function chain(url, params, sel, placeholder) {
+        $(sel).nextAll('select').prop("disabled", true).empty().append('<option>-- Select previous --</option>');
+        $("#results").empty();
+        if (Object.values(params).every(v => v)) load(url, params, sel, placeholder);
+    }
+
+    function load(url, params, sel, placeholder) {
+        $(sel).prop("disabled", true).empty().append('<option>Loading...</option>');
+        $.get(url, params).done(function(opts) {
+            $(sel).empty().append(`<option value="">${placeholder}</option>`);
+            opts.forEach(o => $(sel).append(`<option value="${o}">${o}</option>`));
+            $(sel).prop("disabled", false);
+        });
+    }
+
+    function showDetails(url, params, title) {
+        $("#results").html('<div class="text-center py-5"><div class="spinner-border text-primary"></div></div>');
+        $.get(url, params).done(function(data) {
+            $("#results").empty();
+            if (data.length === 0) {
+                $("#results").html('<div class="alert alert-info text-center">No temperature element found.</div>');
+                return;
+            }
+            let html = `<h3 class="mb-4 text-primary">${title}s (${data.length})</h3><div class="table-responsive"><table class="table table-hover"><thead class="table-light"><tr><th>Cost</th><th>Supplier</th><th>Date</th><th>Remarks</th></tr></thead><tbody>`;
+            data.forEach(r => html += `<tr><td><strong>${r.cost || r.Cost || '-'}</strong></td><td>${r.supplier || r.Supplier || '-'}</td><td>${r.date || r.Date || '-'}</td><td>${r.remarks || r.Remarks || '-'}</td></tr>`);
+            html += '</tbody></table></div>';
+            $("#results").html(html);
+        });
+    }
+});
+</script>
+
+<style>
+    .card { border-radius: 16px; transition: transform 0.2s; }
+    .card:hover { transform: translateY(-5px); }
+    .form-select-lg { border-radius: 12px; padding: 0.75rem 1rem; }
+    .table th { font-weight: 600; background: #f8f9fa; }
+</style>
+{% endblock %}
