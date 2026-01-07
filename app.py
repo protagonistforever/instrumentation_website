@@ -623,6 +623,488 @@ def api_flow_details():
     rows = get_flow_meter_rows()
     matches = [r for r in rows if r.get("Type", "") == type_val and r.get("size_mm", "") == size]
     return jsonify(matches)
+# ================== NEW INSTRUMENTS ==================
 
+# 1. PG & DPG
+def get_pg_dpg_rows():
+    try:
+        sheet = get_sheet("PG & DPG")
+        records = sheet.get_all_records()
+        return [{k: str(v).strip() if v not in ("", None) else "" for k, v in row.items()} for row in records]
+    except Exception as e:
+        print(f"Error loading PG & DPG tab: {e}")
+        return []
+
+@app.route("/pg-dpg")
+def pg_dpg_page():
+    rows = get_pg_dpg_rows()
+    types = sorted({r.get("Type", "") for r in rows if r.get("Type", "")})
+    return render_template("instruments/pg_dpg.html", types=types)
+
+@app.route("/api/pg-dpg/types")
+def api_pg_dpg_types():
+    return jsonify(sorted({r.get("Type", "") for r in get_pg_dpg_rows() if r.get("Type", "")}))
+
+@app.route("/api/pg-dpg/sensing")
+def api_pg_dpg_sensing():
+    type_val = request.args.get("type", "").strip()
+    if not type_val: return jsonify([])
+    return jsonify(sorted({r.get("sensing element", "") for r in get_pg_dpg_rows() if r.get("Type", "") == type_val and r.get("sensing element", "")}))
+
+@app.route("/api/pg-dpg/diaseal")
+def api_pg_dpg_diaseal():
+    type_val = request.args.get("type", "").strip()
+    sensing = request.args.get("sensing", "").strip()
+    if not all([type_val, sensing]): return jsonify([])
+    return jsonify(sorted({r.get("Dia seal", "") for r in get_pg_dpg_rows() if r.get("Type", "") == type_val and r.get("sensing element", "") == sensing and r.get("Dia seal", "")}))
+
+@app.route("/api/pg-dpg/dialsize")
+def api_pg_dpg_dialsize():
+    type_val = request.args.get("type", "").strip()
+    sensing = request.args.get("sensing", "").strip()
+    diaseal = request.args.get("diaseal", "").strip()
+    if not all([type_val, sensing, diaseal]): return jsonify([])
+    return jsonify(sorted({r.get("dial size", "") for r in get_pg_dpg_rows() if r.get("Type", "") == type_val and r.get("sensing element", "") == sensing and r.get("Dia seal", "") == diaseal and r.get("dial size", "")}))
+
+@app.route("/api/pg-dpg/range")
+def api_pg_dpg_range():
+    type_val = request.args.get("type", "").strip()
+    sensing = request.args.get("sensing", "").strip()
+    diaseal = request.args.get("diaseal", "").strip()
+    dialsize = request.args.get("dialsize", "").strip()
+    if not all([type_val, sensing, diaseal, dialsize]): return jsonify([])
+    return jsonify(sorted({r.get("range", "") for r in get_pg_dpg_rows() if r.get("Type", "") == type_val and r.get("sensing element", "") == sensing and r.get("Dia seal", "") == diaseal and r.get("dial size", "") == dialsize and r.get("range", "")}))
+
+@app.route("/api/pg-dpg/accessories")
+def api_pg_dpg_accessories():
+    type_val = request.args.get("type", "").strip()
+    sensing = request.args.get("sensing", "").strip()
+    diaseal = request.args.get("diaseal", "").strip()
+    dialsize = request.args.get("dialsize", "").strip()
+    range_val = request.args.get("range", "").strip()
+    if not all([type_val, sensing, diaseal, dialsize, range_val]): return jsonify([])
+    return jsonify(sorted({r.get("accessories", "") for r in get_pg_dpg_rows() if r.get("Type", "") == type_val and r.get("sensing element", "") == sensing and r.get("Dia seal", "") == diaseal and r.get("dial size", "") == dialsize and r.get("range", "") == range_val and r.get("accessories", "")}))
+
+@app.route("/api/pg-dpg/details")
+def api_pg_dpg_details():
+    params = {k: request.args.get(k, "").strip() for k in ["type", "sensing", "diaseal", "dialsize", "range", "accessories"]}
+    if not all(params.values()): return jsonify([])
+    rows = get_pg_dpg_rows()
+    matches = [r for r in rows if all(r.get(k.capitalize().replace("diaseal", "Dia seal").replace("dialsize", "dial size"), "") == v for k, v in params.items() if k != "accessories") and r.get("accessories", "") == params["accessories"]]
+    return jsonify(matches)
+
+# 2. PS & DPS
+def get_ps_dps_rows():
+    try:
+        sheet = get_sheet("PS & DPS")
+        records = sheet.get_all_records()
+        return [{k: str(v).strip() if v not in ("", None) else "" for k, v in row.items()} for row in records]
+    except Exception as e:
+        print(f"Error loading PS & DPS tab: {e}")
+        return []
+
+@app.route("/ps-dps")
+def ps_dps_page():
+    rows = get_ps_dps_rows()
+    types = sorted({r.get("type", "") for r in rows if r.get("type", "")})
+    return render_template("instruments/ps_dps.html", types=types)
+
+@app.route("/api/ps-dps/types")
+def api_ps_dps_types():
+    return jsonify(sorted({r.get("type", "") for r in get_ps_dps_rows() if r.get("type", "")}))
+
+@app.route("/api/ps-dps/accessories")
+def api_ps_dps_accessories():
+    type_val = request.args.get("type", "").strip()
+    if not type_val: return jsonify([])
+    return jsonify(sorted({r.get("accessories", "") for r in get_ps_dps_rows() if r.get("type", "") == type_val and r.get("accessories", "")}))
+
+@app.route("/api/ps-dps/details")
+def api_ps_dps_details():
+    type_val = request.args.get("type", "").strip()
+    accessories = request.args.get("accessories", "").strip()
+    if not all([type_val, accessories]): return jsonify([])
+    rows = get_ps_dps_rows()
+    matches = [r for r in rows if r.get("type", "") == type_val and r.get("accessories", "") == accessories]
+    return jsonify(matches)
+
+# 3. Analysers
+def get_analysers_rows():
+    try:
+        sheet = get_sheet("Analysers")
+        records = sheet.get_all_records()
+        return [{k: str(v).strip() if v not in ("", None) else "" for k, v in row.items()} for row in records]
+    except Exception as e:
+        print(f"Error loading Analysers tab: {e}")
+        return []
+
+@app.route("/analysers")
+def analysers_page():
+    rows = get_analysers_rows()
+    type1 = sorted({r.get("type1", "") for r in rows if r.get("type1", "")})
+    return render_template("instruments/analysers.html", type1=type1)
+
+@app.route("/api/analysers/type1")
+def api_analysers_type1():
+    return jsonify(sorted({r.get("type1", "") for r in get_analysers_rows() if r.get("type1", "")}))
+
+@app.route("/api/analysers/type2")
+def api_analysers_type2():
+    type1 = request.args.get("type1", "").strip()
+    if not type1: return jsonify([])
+    return jsonify(sorted({r.get("type2", "") for r in get_analysers_rows() if r.get("type1", "") == type1 and r.get("type2", "")}))
+
+@app.route("/api/analysers/application")
+def api_analysers_application():
+    type1 = request.args.get("type1", "").strip()
+    type2 = request.args.get("type2", "").strip()
+    if not all([type1, type2]): return jsonify([])
+    return jsonify(sorted({r.get("Application", "") for r in get_analysers_rows() if r.get("type1", "") == type1 and r.get("type2", "") == type2 and r.get("Application", "")}))
+
+@app.route("/api/analysers/range")
+def api_analysers_range():
+    type1 = request.args.get("type1", "").strip()
+    type2 = request.args.get("type2", "").strip()
+    app = request.args.get("application", "").strip()
+    if not all([type1, type2, app]): return jsonify([])
+    return jsonify(sorted({r.get("Range", "") for r in get_analysers_rows() if r.get("type1", "") == type1 and r.get("type2", "") == type2 and r.get("Application", "") == app and r.get("Range", "")}))
+
+@app.route("/api/analysers/details")
+def api_analysers_details():
+    params = {k: request.args.get(k, "").strip() for k in ["type1", "type2", "application", "range"]}
+    if not all(params.values()): return jsonify([])
+    rows = get_analysers_rows()
+    matches = [r for r in rows if r.get("type1", "") == params["type1"] and r.get("type2", "") == params["type2"] and r.get("Application", "") == params["application"] and r.get("Range", "") == params["range"]]
+    return jsonify(matches)
+
+# 4. Level Gauges (LG)
+def get_level_gauges_rows():
+    try:
+        sheet = get_sheet("LG")
+        records = sheet.get_all_records()
+        return [{k: str(v).strip() if v not in ("", None) else "" for k, v in row.items()} for row in records]
+    except Exception as e:
+        print(f"Error loading LG tab: {e}")
+        return []
+
+@app.route("/level-gauges")
+def level_gauges_page():
+    rows = get_level_gauges_rows()
+    types = sorted({r.get("type", "") for r in rows if r.get("type", "")})
+    return render_template("instruments/level_gauges.html", types=types)
+
+@app.route("/api/level-gauges/types")
+def api_level_gauges_types():
+    return jsonify(sorted({r.get("type", "") for r in get_level_gauges_rows() if r.get("type", "")}))
+
+@app.route("/api/level-gauges/accessories")
+def api_level_gauges_accessories():
+    type_val = request.args.get("type", "").strip()
+    if not type_val: return jsonify([])
+    return jsonify(sorted({r.get("accessories", "") for r in get_level_gauges_rows() if r.get("type", "") == type_val and r.get("accessories", "")}))
+
+@app.route("/api/level-gauges/distance")
+def api_level_gauges_distance():
+    type_val = request.args.get("type", "").strip()
+    accessories = request.args.get("accessories", "").strip()
+    if not all([type_val, accessories]): return jsonify([])
+    return jsonify(sorted({r.get("center to center distance", "") for r in get_level_gauges_rows() if r.get("type", "") == type_val and r.get("accessories", "") == accessories and r.get("center to center distance", "")}))
+
+@app.route("/api/level-gauges/details")
+def api_level_gauges_details():
+    type_val = request.args.get("type", "").strip()
+    accessories = request.args.get("accessories", "").strip()
+    distance = request.args.get("distance", "").strip()
+    if not all([type_val, accessories, distance]): return jsonify([])
+    rows = get_level_gauges_rows()
+    matches = [r for r in rows if r.get("type", "") == type_val and r.get("accessories", "") == accessories and r.get("center to center distance", "") == distance]
+    return jsonify(matches)
+
+# 5. Flow Elements
+def get_flow_elements_rows():
+    try:
+        sheet = get_sheet("Flow Elements")
+        records = sheet.get_all_records()
+        return [{k: str(v).strip() if v not in ("", None) else "" for k, v in row.items()} for row in records]
+    except Exception as e:
+        print(f"Error loading Flow Elements tab: {e}")
+        return []
+
+@app.route("/flow-elements")
+def flow_elements_page():
+    rows = get_flow_elements_rows()
+    type1 = sorted({r.get("type1", "") for r in rows if r.get("type1", "")})
+    return render_template("instruments/flow_elements.html", type1=type1)
+
+@app.route("/api/flow-elements/type1")
+def api_flow_elements_type1():
+    return jsonify(sorted({r.get("type1", "") for r in get_flow_elements_rows() if r.get("type1", "")}))
+
+@app.route("/api/flow-elements/line_size")
+def api_flow_elements_line_size():
+    type1 = request.args.get("type1", "").strip()
+    if not type1: return jsonify([])
+    return jsonify(sorted({r.get("line size", "") for r in get_flow_elements_rows() if r.get("type1", "") == type1 and r.get("line size", "")}))
+
+@app.route("/api/flow-elements/moc")
+def api_flow_elements_moc():
+    type1 = request.args.get("type1", "").strip()
+    line_size = request.args.get("line_size", "").strip()
+    if not all([type1, line_size]): return jsonify([])
+    return jsonify(sorted({r.get("moc", "") for r in get_flow_elements_rows() if r.get("type1", "") == type1 and r.get("line size", "") == line_size and r.get("moc", "")}))
+
+@app.route("/api/flow-elements/details")
+def api_flow_elements_details():
+    type1 = request.args.get("type1", "").strip()
+    line_size = request.args.get("line_size", "").strip()
+    moc = request.args.get("moc", "").strip()
+    if not all([type1, line_size, moc]): return jsonify([])
+    rows = get_flow_elements_rows()
+    matches = [r for r in rows if r.get("type1", "") == type1 and r.get("line size", "") == line_size and r.get("moc", "") == moc]
+    return jsonify(matches)
+
+# 6. Temperature Gauges (TG)
+def get_temperature_gauges_rows():
+    try:
+        sheet = get_sheet("TG")
+        records = sheet.get_all_records()
+        return [{k: str(v).strip() if v not in ("", None) else "" for k, v in row.items()} for row in records]
+    except Exception as e:
+        print(f"Error loading TG tab: {e}")
+        return []
+
+@app.route("/temperature-gauges")
+def temperature_gauges_page():
+    rows = get_temperature_gauges_rows()
+    type1 = sorted({r.get("type1", "") for r in rows if r.get("type1", "")})
+    return render_template("instruments/temperature_gauges.html", type1=type1)
+
+@app.route("/api/temperature-gauges/type1")
+def api_temperature_gauges_type1():
+    return jsonify(sorted({r.get("type1", "") for r in get_temperature_gauges_rows() if r.get("type1", "")}))
+
+@app.route("/api/temperature-gauges/type2")
+def api_temperature_gauges_type2():
+    type1 = request.args.get("type1", "").strip()
+    if not type1: return jsonify([])
+    return jsonify(sorted({r.get("type2", "") for r in get_temperature_gauges_rows() if r.get("type1", "") == type1 and r.get("type2", "")}))
+
+@app.route("/api/temperature-gauges/moc")
+def api_temperature_gauges_moc():
+    type1 = request.args.get("type1", "").strip()
+    type2 = request.args.get("type2", "").strip()
+    if not all([type1, type2]): return jsonify([])
+    return jsonify(sorted({r.get("moc", "") for r in get_temperature_gauges_rows() if r.get("type1", "") == type1 and r.get("type2", "") == type2 and r.get("moc", "")}))
+
+@app.route("/api/temperature-gauges/insertion")
+def api_temperature_gauges_insertion():
+    type1 = request.args.get("type1", "").strip()
+    type2 = request.args.get("type2", "").strip()
+    moc = request.args.get("moc", "").strip()
+    if not all([type1, type2, moc]): return jsonify([])
+    return jsonify(sorted({r.get("insertion length", "") for r in get_temperature_gauges_rows() if r.get("type1", "") == type1 and r.get("type2", "") == type2 and r.get("moc", "") == moc and r.get("insertion length", "")}))
+
+@app.route("/api/temperature-gauges/dialsize")
+def api_temperature_gauges_dialsize():
+    type1 = request.args.get("type1", "").strip()
+    type2 = request.args.get("type2", "").strip()
+    moc = request.args.get("moc", "").strip()
+    insertion = request.args.get("insertion", "").strip()
+    if not all([type1, type2, moc, insertion]): return jsonify([])
+    return jsonify(sorted({r.get("dial size", "") for r in get_temperature_gauges_rows() if r.get("type1", "") == type1 and r.get("type2", "") == type2 and r.get("moc", "") == moc and r.get("insertion length", "") == insertion and r.get("dial size", "")}))
+
+@app.route("/api/temperature-gauges/details")
+def api_temperature_gauges_details():
+    params = {k: request.args.get(k, "").strip() for k in ["type1", "type2", "moc", "insertion", "dialsize"]}
+    if not all(params.values()): return jsonify([])
+    rows = get_temperature_gauges_rows()
+    matches = [r for r in rows if r.get("type1", "") == params["type1"] and r.get("type2", "") == params["type2"] and r.get("moc", "") == params["moc"] and r.get("insertion length", "") == params["insertion"] and r.get("dial size", "") == params["dialsize"]]
+    return jsonify(matches)
+
+# 7. Level Transmitter
+def get_level_transmitter_rows():
+    try:
+        sheet = get_sheet("Level Transmitter")
+        records = sheet.get_all_records()
+        return [{k: str(v).strip() if v not in ("", None) else "" for k, v in row.items()} for row in records]
+    except Exception as e:
+        print(f"Error loading Level Transmitter tab: {e}")
+        return []
+
+@app.route("/level-transmitter")
+def level_transmitter_page():
+    rows = get_level_transmitter_rows()
+    type1 = sorted({r.get("type1", "") for r in rows if r.get("type1", "")})
+    return render_template("instruments/level_transmitter.html", type1=type1)
+
+@app.route("/api/level-transmitter/type1")
+def api_level_transmitter_type1():
+    return jsonify(sorted({r.get("type1", "") for r in get_level_transmitter_rows() if r.get("type1", "")}))
+
+@app.route("/api/level-transmitter/type2")
+def api_level_transmitter_type2():
+    type1 = request.args.get("type1", "").strip()
+    if not type1: return jsonify([])
+    return jsonify(sorted({r.get("type2", "") for r in get_level_transmitter_rows() if r.get("type1", "") == type1 and r.get("type2", "")}))
+
+@app.route("/api/level-transmitter/application")
+def api_level_transmitter_application():
+    type1 = request.args.get("type1", "").strip()
+    type2 = request.args.get("type2", "").strip()
+    if not all([type1, type2]): return jsonify([])
+    return jsonify(sorted({r.get("application", "") for r in get_level_transmitter_rows() if r.get("type1", "") == type1 and r.get("type2", "") == type2 and r.get("application", "")}))
+
+@app.route("/api/level-transmitter/range")
+def api_level_transmitter_range():
+    type1 = request.args.get("type1", "").strip()
+    type2 = request.args.get("type2", "").strip()
+    app = request.args.get("application", "").strip()
+    if not all([type1, type2, app]): return jsonify([])
+    return jsonify(sorted({r.get("range", "") for r in get_level_transmitter_rows() if r.get("type1", "") == type1 and r.get("type2", "") == type2 and r.get("application", "") == app and r.get("range", "")}))
+
+@app.route("/api/level-transmitter/details")
+def api_level_transmitter_details():
+    params = {k: request.args.get(k, "").strip() for k in ["type1", "type2", "application", "range"]}
+    if not all(params.values()): return jsonify([])
+    rows = get_level_transmitter_rows()
+    matches = [r for r in rows if r.get("type1", "") == params["type1"] and r.get("type2", "") == params["type2"] and r.get("application", "") == params["application"] and r.get("range", "") == params["range"]]
+    return jsonify(matches)
+
+# 8. Level & Flow Switch (LS & FS)
+def get_ls_fs_rows():
+    try:
+        sheet = get_sheet("LS & FS")
+        records = sheet.get_all_records()
+        return [{k: str(v).strip() if v not in ("", None) else "" for k, v in row.items()} for row in records]
+    except Exception as e:
+        print(f"Error loading LS & FS tab: {e}")
+        return []
+
+@app.route("/level-flow-switch")
+def ls_fs_page():
+    rows = get_ls_fs_rows()
+    types = sorted({r.get("type", "") for r in rows if r.get("type", "")})
+    return render_template("instruments/level_flow_switch.html", types=types)
+
+@app.route("/api/level-flow-switch/types")
+def api_ls_fs_types():
+    return jsonify(sorted({r.get("type", "") for r in get_ls_fs_rows() if r.get("type", "")}))
+
+@app.route("/api/level-flow-switch/accessories")
+def api_ls_fs_accessories():
+    type_val = request.args.get("type", "").strip()
+    if not type_val: return jsonify([])
+    return jsonify(sorted({r.get("accessories", "") for r in get_ls_fs_rows() if r.get("type", "") == type_val and r.get("accessories", "")}))
+
+@app.route("/api/level-flow-switch/details")
+def api_ls_fs_details():
+    type_val = request.args.get("type", "").strip()
+    accessories = request.args.get("accessories", "").strip()
+    if not all([type_val, accessories]): return jsonify([])
+    rows = get_ls_fs_rows()
+    matches = [r for r in rows if r.get("type", "") == type_val and r.get("accessories", "") == accessories]
+    return jsonify(matches)
+
+# 9. Temperature Elements
+def get_temperature_elements_rows():
+    try:
+        sheet = get_sheet("Temperture Elements")
+        records = sheet.get_all_records()
+        return [{k: str(v).strip() if v not in ("", None) else "" for k, v in row.items()} for row in records]
+    except Exception as e:
+        print(f"Error loading Temperture Elements tab: {e}")
+        return []
+
+@app.route("/temperature-elements")
+def temperature_elements_page():
+    rows = get_temperature_elements_rows()
+    type1 = sorted({r.get("type1", "") for r in rows if r.get("type1", "")})
+    return render_template("instruments/temperature_elements.html", type1=type1)
+
+@app.route("/api/temperature-elements/type1")
+def api_temperature_elements_type1():
+    return jsonify(sorted({r.get("type1", "") for r in get_temperature_elements_rows() if r.get("type1", "")}))
+
+@app.route("/api/temperature-elements/type2")
+def api_temperature_elements_type2():
+    type1 = request.args.get("type1", "").strip()
+    if not type1: return jsonify([])
+    return jsonify(sorted({r.get("type2", "") for r in get_temperature_elements_rows() if r.get("type1", "") == type1 and r.get("type2", "")}))
+
+@app.route("/api/temperature-elements/type3")
+def api_temperature_elements_type3():
+    type1 = request.args.get("type1", "").strip()
+    type2 = request.args.get("type2", "").strip()
+    if not all([type1, type2]): return jsonify([])
+    return jsonify(sorted({r.get("type3", "") for r in get_temperature_elements_rows() if r.get("type1", "") == type1 and r.get("type2", "") == type2 and r.get("type3", "")}))
+
+@app.route("/api/temperature-elements/moc")
+def api_temperature_elements_moc():
+    type1 = request.args.get("type1", "").strip()
+    type2 = request.args.get("type2", "").strip()
+    type3 = request.args.get("type3", "").strip()
+    if not all([type1, type2, type3]): return jsonify([])
+    return jsonify(sorted({r.get("moc", "") for r in get_temperature_elements_rows() if r.get("type1", "") == type1 and r.get("type2", "") == type2 and r.get("type3", "") == type3 and r.get("moc", "")}))
+
+@app.route("/api/temperature-elements/insertion")
+def api_temperature_elements_insertion():
+    type1 = request.args.get("type1", "").strip()
+    type2 = request.args.get("type2", "").strip()
+    type3 = request.args.get("type3", "").strip()
+    moc = request.args.get("moc", "").strip()
+    if not all([type1, type2, type3, moc]): return jsonify([])
+    return jsonify(sorted({r.get("insertion length", "") for r in get_temperature_elements_rows() if r.get("type1", "") == type1 and r.get("type2", "") == type2 and r.get("type3", "") == type3 and r.get("moc", "") == moc and r.get("insertion length", "")}))
+
+@app.route("/api/temperature-elements/details")
+def api_temperature_elements_details():
+    params = {k: request.args.get(k, "").strip() for k in ["type1", "type2", "type3", "moc", "insertion"]}
+    if not all(params.values()): return jsonify([])
+    rows = get_temperature_elements_rows()
+    matches = [r for r in rows if r.get("type1", "") == params["type1"] and r.get("type2", "") == params["type2"] and r.get("type3", "") == params["type3"] and r.get("moc", "") == params["moc"] and r.get("insertion length", "") == params["insertion"]]
+    return jsonify(matches)
+
+# 10. Misc Instruments
+def get_misc_instruments_rows():
+    try:
+        sheet = get_sheet("Misc Instruments")
+        records = sheet.get_all_records()
+        return [{k: str(v).strip() if v not in ("", None) else "" for k, v in row.items()} for row in records]
+    except Exception as e:
+        print(f"Error loading Misc Instruments tab: {e}")
+        return []
+
+@app.route("/misc-instruments")
+def misc_instruments_page():
+    rows = get_misc_instruments_rows()
+    types = sorted({r.get("type", "") for r in rows if r.get("type", "")})
+    return render_template("instruments/misc_instruments.html", types=types)
+
+@app.route("/api/misc/types")
+def api_misc_types():
+    return jsonify(sorted({r.get("type", "") for r in get_misc_instruments_rows() if r.get("type", "")}))
+
+@app.route("/api/misc/details_field")
+def api_misc_details():
+    type_val = request.args.get("type", "").strip()
+    if not type_val: return jsonify([])
+    return jsonify(sorted({r.get("details", "") for r in get_misc_instruments_rows() if r.get("type", "") == type_val and r.get("details", "")}))
+
+@app.route("/api/misc/accessories")
+def api_misc_accessories():
+    type_val = request.args.get("type", "").strip()
+    details = request.args.get("details", "").strip()
+    if not all([type_val, details]): return jsonify([])
+    return jsonify(sorted({r.get("accessories", "") for r in get_misc_instruments_rows() if r.get("type", "") == type_val and r.get("details", "") == details and r.get("accessories", "")}))
+
+@app.route("/api/misc/details")
+def api_misc_details():
+    type_val = request.args.get("type", "").strip()
+    details = request.args.get("details", "").strip()
+    accessories = request.args.get("accessories", "").strip()
+    if not all([type_val, details, accessories]): return jsonify([])
+    rows = get_misc_instruments_rows()
+    matches = [r for r in rows if r.get("type", "") == type_val and r.get("details", "") == details and r.get("accessories", "") == accessories]
+    return jsonify(matches)
+    
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000)
