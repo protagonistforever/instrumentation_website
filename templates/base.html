@@ -4,13 +4,10 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>{{ title or 'Instrumentation Cost Data-Bank' }}</title>
-
     <!-- Bootstrap 5.3 -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
-
     <!-- Google Fonts: Modern & Premium -->
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
-
     <style>
         :root {
             --bg-primary: #0f0f1a;
@@ -22,7 +19,6 @@
             --border-color: #33334d;
             --card-bg: #16213e;
         }
-
         body {
             background: var(--bg-primary);
             color: var(--text-primary);
@@ -30,49 +26,43 @@
             min-height: 100vh;
             margin: 0;
         }
-
         /* Compact Header - Smaller & Not Fixed */
         .site-header {
             background: rgba(15, 15, 26, 0.95);
             backdrop-filter: blur(12px);
             border-bottom: 1px solid var(--border-color);
-            padding: 0.8rem 0; /* Reduced padding */
+            padding: 0.8rem 0;
         }
-
         .navbar-brand {
             font-family: 'Space Grotesk', sans-serif;
             font-weight: 700;
-            font-size: 1.5rem; /* Smaller than before */
+            font-size: 1.5rem;
             color: #fff;
         }
-
         .navbar-brand span {
             color: var(--accent-pink);
         }
-
-        .btn-admin {
+        .btn-admin, .btn-home {
             background: transparent;
             border: 2px solid var(--accent-pink);
             color: var(--accent-pink);
             font-weight: 600;
-            padding: 0.4rem 1.2rem; /* Smaller button */
+            padding: 0.4rem 1.2rem;
             border-radius: 50px;
             font-size: 0.9rem;
             transition: all 0.3s ease;
+            margin-left: 0.5rem;
         }
-
-        .btn-admin:hover {
+        .btn-admin:hover, .btn-home:hover {
             background: var(--accent-pink);
             color: #fff;
             transform: translateY(-2px);
         }
-
-        /* Main Content - Starts closer to top */
+        /* Main Content */
         .container {
-            padding-top: 2rem; /* Reduced from 6rem */
+            padding-top: 2rem;
             padding-bottom: 4rem;
         }
-
         /* Cards on Index Page */
         .instrument-card {
             background: var(--card-bg);
@@ -82,18 +72,15 @@
             transition: all 0.4s ease;
             height: 100%;
         }
-
         .instrument-card:hover {
             transform: translateY(-12px);
             box-shadow: 0 20px 40px rgba(233, 30, 99, 0.15);
             border-color: var(--accent-pink-light);
         }
-
         .instrument-card .card-body {
             padding: 2rem;
             text-align: center;
         }
-
         .instrument-card h5 {
             font-family: 'Space Grotesk', sans-serif;
             font-weight: 600;
@@ -101,7 +88,6 @@
             margin-bottom: 1.2rem;
             font-size: 1.3rem;
         }
-
         .btn-select {
             background: transparent;
             border: 2px solid var(--accent-pink);
@@ -112,23 +98,19 @@
             transition: all 0.3s ease;
             font-size: 1rem;
         }
-
         .btn-select:hover {
             background: var(--accent-pink);
             color: #fff;
             transform: scale(1.05);
         }
-
         /* Headings */
         h1, h2, h3, h5 {
             font-family: 'Space Grotesk', sans-serif;
             font-weight: 600;
         }
-
         h1 {
             color: #fff;
         }
-
         /* Form Elements */
         .form-select, .form-control {
             background-color: var(--bg-secondary);
@@ -137,29 +119,24 @@
             border-radius: 12px;
             padding: 0.8rem 1.2rem;
         }
-
         .form-select:focus, .form-control:focus {
             border-color: var(--accent-pink);
             box-shadow: 0 0 0 0.2rem rgba(233, 30, 99, 0.25);
         }
-
         /* Tables */
         .table {
             background: var(--card-bg);
             border-radius: 12px;
             overflow: hidden;
         }
-
         .table th {
             background: var(--bg-secondary);
             color: var(--accent-pink-light);
             font-weight: 600;
         }
-
         .table-hover tbody tr:hover {
             background: rgba(233, 30, 99, 0.08);
         }
-
         /* Footer */
         footer {
             background: var(--bg-secondary);
@@ -167,23 +144,19 @@
             padding: 3rem 0 2rem;
             margin-top: auto;
         }
-
         footer p {
             margin: 0;
             color: var(--text-muted);
         }
-
         footer strong {
             color: var(--accent-pink);
         }
-
         footer .text-pink {
             color: var(--accent-pink);
         }
     </style>
 </head>
 <body class="d-flex flex-column min-vh-100">
-
     <!-- Compact Non-Fixed Header -->
     <header class="site-header">
         <div class="container">
@@ -191,18 +164,19 @@
                 <a class="navbar-brand mb-0" href="/">
                     Instrumentation <span>Cost Data-Bank</span>
                 </a>
-                <a href="/admin" class="btn btn-admin">Admin</a>
+                <div>
+                    <a href="/" class="btn btn-home">Home</a>
+                    <a href="/admin" class="btn btn-admin">Admin</a>
+                </div>
             </div>
         </div>
     </header>
-
     <!-- Main Content -->
     <main class="flex-grow-1">
         <div class="container">
             {% block content %}{% endblock %}
         </div>
     </main>
-
     <!-- Footer -->
     <footer>
         <div class="container">
@@ -223,7 +197,6 @@
             </p>
         </div>
     </footer>
-
     <!-- Bootstrap JS -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 </body>
