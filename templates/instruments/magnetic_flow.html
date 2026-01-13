@@ -1,15 +1,12 @@
 {% extends "base.html" %}
-
 {% block content %}
 <div class="container py-5">
     <h1 class="display-5 fw-bold text-center mb-5 text-primary">Magnetic Flow Meter Selection</h1>
-
     <div class="row justify-content-center">
         <div class="col-lg-8 col-xl-6">
             <div class="card shadow-sm border-0">
                 <div class="card-body p-5">
                     <h3 class="card-title text-center mb-4">Configure Your Meter</h3>
-
                     <form id="selection-form">
                         <!-- Size Dropdown -->
                         <div class="mb-4">
@@ -21,7 +18,6 @@
                                 <span class="visually-hidden">Loading...</span>
                             </div>
                         </div>
-
                         <!-- Type Dropdown -->
                         <div class="mb-4">
                             <label for="type" class="form-label fw-semibold">Type</label>
@@ -29,7 +25,6 @@
                                 <option value="">-- First select size --</option>
                             </select>
                         </div>
-
                         <!-- Liner Material Dropdown -->
                         <div class="mb-4">
                             <label for="liner" class="form-label fw-semibold">Liner Material</label>
@@ -40,7 +35,6 @@
                     </form>
                 </div>
             </div>
-
             <!-- Results Section -->
             <div id="results" class="mt-5"></div>
         </div>
@@ -71,7 +65,6 @@ $(document).ready(function() {
         resetDropdown("#type", "-- First select size --");
         resetDropdown("#liner", "-- Select type first --");
         $("#results").empty();
-
         if (size) {
             loadOptions("/api/magnetic/types", {size: size}, "#type", "-- Select Type --");
         }
@@ -83,7 +76,6 @@ $(document).ready(function() {
         const type = $(this).val();
         resetDropdown("#liner", "-- Select type first --");
         $("#results").empty();
-
         if (type) {
             loadOptions("/api/magnetic/liners", {size: size, type: type}, "#liner", "-- Select Liner Material --");
         }
@@ -94,7 +86,6 @@ $(document).ready(function() {
         const size = $("#size").val();
         const type = $("#type").val();
         const liner = $(this).val();
-
         $("#results").html(`
             <div class="text-center py-5">
                 <div class="spinner-border text-primary" role="status">
@@ -102,12 +93,10 @@ $(document).ready(function() {
                 </div>
             </div>
         `);
-
         if (liner) {
             $.get("/api/magnetic/details", {size: size, type: type, liner: liner})
                 .done(function(data) {
                     $("#results").empty();
-
                     if (data.length === 0) {
                         $("#results").html(`
                             <div class="alert alert-info text-center">
@@ -120,14 +109,14 @@ $(document).ready(function() {
                     let html = `
                         <h3 class="mb-4 text-primary">Available Configurations (${data.length})</h3>
                         <div class="table-responsive">
-                            <table class="table table-hover align-middle">
-                                <thead class="table-light">
+                            <table class="table table-hover align-middle table-bordered">
+                                <thead class="table-primary">
                                     <tr>
-                                        <th>Model</th>
-                                        <th>Cost</th>
-                                        <th>Supplier</th>
-                                        <th>Date</th>
-                                        <th>Details</th>
+                                        <th style="width: 25%;">Model</th>
+                                        <th style="width: 15%;">Cost</th>
+                                        <th style="width: 20%;">Supplier</th>
+                                        <th style="width: 15%;">Date</th>
+                                        <th style="width: 25%;">Details</th>
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -141,11 +130,11 @@ $(document).ready(function() {
 
                         html += `
                             <tr>
-                                <td><strong>${row.Model || '-'}</strong></td>
+                                <td class="text-break"><strong>${row.Model || '-'}</strong></td>
                                 <td>${row.Cost || '-'}</td>
                                 <td>${row.Supplier || '-'}</td>
                                 <td>${row.Date || '-'}</td>
-                                <td>${otherDetails || '-'}</td>
+                                <td class="text-break">${otherDetails || '-'}</td>
                             </tr>
                         `;
                     });
@@ -155,7 +144,6 @@ $(document).ready(function() {
                             </table>
                         </div>
                     `;
-
                     $("#results").html(html);
                 })
                 .fail(function() {
@@ -206,12 +194,25 @@ $(document).ready(function() {
         padding: 0.75rem 1rem;
     }
     .table th {
-        background-color: #f8f9fa;
         font-weight: 600;
+        white-space: nowrap;
+    }
+    .table td {
+        vertical-align: middle;
+    }
+    .table-responsive {
+        overflow-x: auto;
+    }
+    .text-break {
+        word-break: break-word;
+        hyphens: auto;
     }
     @media (max-width: 576px) {
         .display-5 {
             font-size: 2.5rem;
+        }
+        .table {
+            font-size: 0.9rem;
         }
     }
 </style>
