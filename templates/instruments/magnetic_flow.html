@@ -10,7 +10,7 @@
                     <h3 class="card-title text-center mb-4">Configure Your Meter</h3>
 
                     <form id="selection-form">
-                        <!-- Size Dropdown -->
+                        <!-- Size -->
                         <div class="mb-4">
                             <label for="size" class="form-label fw-semibold">Size</label>
                             <select class="form-select form-select-lg" id="size" required>
@@ -21,7 +21,7 @@
                             </div>
                         </div>
 
-                        <!-- Type Dropdown -->
+                        <!-- Type -->
                         <div class="mb-4">
                             <label for="type" class="form-label fw-semibold">Type</label>
                             <select class="form-select form-select-lg" id="type" disabled>
@@ -29,7 +29,7 @@
                             </select>
                         </div>
 
-                        <!-- Liner Material Dropdown -->
+                        <!-- Liner Material -->
                         <div class="mb-4">
                             <label for="liner" class="form-label fw-semibold">Liner Material</label>
                             <select class="form-select form-select-lg" id="liner" disabled>
@@ -40,7 +40,7 @@
                 </div>
             </div>
 
-            <!-- Results Section -->
+            <!-- Results -->
             <div id="results" class="mt-5"></div>
         </div>
     </div>
@@ -52,43 +52,41 @@
 
 <script>
 $(document).ready(function() {
-    // Load sizes on page load
+    // 1. Load Sizes on page load
     $('#size-spinner').removeClass('d-none');
     $.get("/api/magnetic/sizes")
         .done(function(sizes) {
-            sizes.forEach(function(size) {
+            sizes.forEach(size => {
                 $("#size").append(`<option value="${size}">${size}</option>`);
             });
         })
-        .always(function() {
-            $('#size-spinner').addClass('d-none');
-        });
+        .always(() => $('#size-spinner').addClass('d-none'));
 
-    // When Size changes → load Types
+    // 2. Size → load Types
     $("#size").change(function() {
         const size = $(this).val();
-        resetDropdown("#type", "-- First select Size --");
-        resetDropdown("#liner", "-- First select Type --");
+        reset("#type", "-- First select Size --");
+        reset("#liner", "-- First select Type --");
         $("#results").empty();
 
         if (size) {
-            loadOptions("/api/magnetic/types", { size: size }, "#type", "-- Select Type --");
+            load("/api/magnetic/types", {size}, "#type", "-- Select Type --");
         }
     });
 
-    // When Type changes → load Liner Materials
+    // 3. Type → load Liner Materials
     $("#type").change(function() {
         const size = $("#size").val();
         const type = $(this).val();
-        resetDropdown("#liner", "-- First select Type --");
+        reset("#liner", "-- First select Type --");
         $("#results").empty();
 
         if (type) {
-            loadOptions("/api/magnetic/liners", { size: size, type: type }, "#liner", "-- Select Liner Material --");
+            load("/api/magnetic/liners", {size, type}, "#liner", "-- Select Liner Material --");
         }
     });
 
-    // When Liner Material is selected → show results
+    // 4. Liner Material → show results
     $("#liner").change(function() {
         const size = $("#size").val();
         const type = $("#type").val();
@@ -96,128 +94,102 @@ $(document).ready(function() {
 
         $("#results").empty();
 
-        if (liner) {
-            $("#results").html(`
-                <div class="text-center py-5">
-                    <div class="spinner-border text-primary" role="status">
-                        <span class="visually-hidden">Loading...</span>
-                    </div>
+        if (!liner) return;
+
+        $("#results").html(`
+            <div class="text-center py-5">
+                <div class="spinner-border text-primary" role="status">
+                    <span class="visually-hidden">Loading...</span>
                 </div>
-            `);
+            </div>
+        `);
 
-            $.get("/api/magnetic/details", { size: size, type: type, liner: liner })
-                .done(function(data) {
-                    $("#results").empty();
+        $.get("/api/magnetic/details", {size, type, liner})
+            .done(function(data) {
+                console.log("Fetched data:", data); // ← Check this in browser console (F12)
 
-                    if (data.length === 0) {
-                        $("#results").html(`
-                            <div class="alert alert-info text-center">
-                                <strong>No matching configuration found</strong> for the selected options.
-                            </div>
-                        `);
-                        return;
-                    }
+                $("#results").empty();
 
-                    let html = `
-                        <h3 class="mb-4 text-primary text-center">Available Configurations (${data.length})</h3>
-                        <div class="table-responsive">
-                            <table class="table table-hover table-bordered align-middle">
-                                <thead class="table-primary">
-                                    <tr>
-                                        <th>Cost</th>
-                                        <th>Supplier</th>
-                                        <th>Date</th>
-                                        <th>Remarks</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                    `;
-
-                    data.forEach(row => {
-                        html += `
-                            <tr>
-                                <td><strong>${row.Cost || '-'}</strong></td>
-                                <td>${row.Supplier || '-'}</td>
-                                <td>${row.Date || '-'}</td>
-                                <td class="text-break">${row.Remarks || '-'}</td>
-                            </tr>
-                        `;
-                    });
-
-                    html += `
-                                </tbody>
-                            </table>
-                        </div>
-                    `;
-
-                    $("#results").html(html);
-                })
-                .fail(function() {
+                if (!data || data.length === 0) {
                     $("#results").html(`
-                        <div class="alert alert-danger text-center">
-                            Error loading data. Please try again later.
+                        <div class="alert alert-info text-center">
+                            <strong>No matching configuration found</strong>
                         </div>
                     `);
-                });
-        }
-    });
+                    return;
+                }
 
-    // Helper: Reset a dropdown
-    function resetDropdown(selector, placeholder) {
-        $(selector)
-            .prop("disabled", true)
-            .empty()
-            .append(`<option value="">${placeholder}</option>`);
-    }
+                let html = `
+                    <h3 class="mb-4 text-primary text-center">
+                        Available Configurations (${data.length})
+                    </h3>
+                    <div class="table-responsive">
+                        <table class="table table-hover table-bordered align-middle">
+                            <thead class="table-primary">
+                                <tr>
+                                    <th>Cost</th>
+                                    <th>Supplier</th>
+                                    <th>Date</th>
+                                    <th>Remarks</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                `;
 
-    // Helper: Load dropdown options via API
-    function loadOptions(url, params, selector, placeholder) {
-        $(selector).prop("disabled", true).empty().append('<option>Loading...</option>');
-        $.get(url, params)
-            .done(function(options) {
-                $(selector).empty().append(`<option value="">${placeholder}</option>`);
-                options.forEach(opt => {
-                    $(selector).append(`<option value="${opt}">${opt}</option>`);
+                data.forEach(row => {
+                    html += `
+                        <tr>
+                            <td class="fw-bold">${row.Cost || row.cost || '-'}</td>
+                            <td>${row.Supplier || row.supplier || '-'}</td>
+                            <td>${row.Date || row.date || '-'}</td>
+                            <td class="text-break">${row.Remarks || row.remarks || '-'}</td>
+                        </tr>
+                    `;
                 });
-                $(selector).prop("disabled", false);
+
+                html += `</tbody></table></div>`;
+
+                $("#results").html(html);
             })
             .fail(function() {
-                $(selector).empty().append(`<option value="">Error loading options</option>`);
+                $("#results").html(`
+                    <div class="alert alert-danger text-center">
+                        Error loading data. Please try again.
+                    </div>
+                `);
+            });
+    });
+
+    // Helpers
+    function reset(sel, text) {
+        $(sel).prop("disabled", true).empty().append(`<option value="">${text}</option>`);
+    }
+
+    function load(url, params, sel, text) {
+        $(sel).prop("disabled", true).empty().append('<option>Loading...</option>');
+        $.get(url, params)
+            .done(opts => {
+                $(sel).empty().append(`<option value="">${text}</option>`);
+                opts.forEach(o => $(sel).append(`<option value="${o}">${o}</option>`));
+                $(sel).prop("disabled", false);
+            })
+            .fail(() => {
+                $(sel).empty().append('<option>Error loading</option>');
             });
     }
 });
 </script>
 
 <style>
-    .card {
-        border-radius: 16px;
-        transition: transform 0.2s;
-    }
-    .card:hover {
-        transform: translateY(-5px);
-    }
-    .form-select-lg {
-        border-radius: 12px;
-        padding: 0.75rem 1rem;
-    }
-    .table th {
-        font-weight: 600;
-        white-space: nowrap;
-    }
-    .table td {
-        vertical-align: middle;
-    }
-    .text-break {
-        word-break: break-word;
-        hyphens: auto;
-    }
+    .card { border-radius: 16px; transition: transform 0.2s; }
+    .card:hover { transform: translateY(-5px); }
+    .form-select-lg { border-radius: 12px; padding: 0.75rem 1rem; }
+    .table th { font-weight: 600; white-space: nowrap; }
+    .table td { vertical-align: middle; }
+    .text-break { word-break: break-word; hyphens: auto; }
     @media (max-width: 576px) {
-        .display-5 {
-            font-size: 2.5rem;
-        }
-        .table {
-            font-size: 0.9rem;
-        }
+        .display-5 { font-size: 2.5rem; }
+        .table { font-size: 0.9rem; }
     }
 </style>
 {% endblock %}
