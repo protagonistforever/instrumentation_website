@@ -70,7 +70,7 @@ $(document).ready(function() {
             $("#results").empty();
             if (data.length === 0) { $("#results").html('<div class="alert alert-info text-center">No cable found.</div>'); return; }
             let html = `<h3 class="mb-4 text-primary">${title}s (${data.length})</h3><div class="table-responsive"><table class="table table-hover"><thead class="table-light"><tr><th>Cost</th><th>Supplier</th><th>Date</th><th>Remarks</th></tr></thead><tbody>`;
-            data.forEach(r => html += `<tr><td><strong>${r.Cost || '-'}</strong></td><td>${r.Supplier || '-'}</td><td>${r.Date || '-'}</td><td>${r.Remarks || '-'}</td></tr>`);
+            data.forEach(r => html += `<tr><td><strong>₹${r.Cost || '-'}</strong></td><td>${r.Supplier || '-'}</td><td>${r.Date || '-'}</td><td>${r.Remarks || '-'}</td></tr>`);
             html += '</tbody></table></div>';
             $("#results").html(html);
         });
