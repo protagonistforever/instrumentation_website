@@ -92,7 +92,7 @@ $(document).ready(function() {
                                         <tbody>`;
                     data.forEach(row => {
                         html += `<tr>
-                            <td><strong>${row.cost || row.Cost || '-'}</strong></td>
+                            <td><strong>₹${row.cost || row.Cost || '-'}</strong></td>
                             <td>${row.supplier || row.Supplier || '-'}</td>
                             <td>${row.date || row.Date || '-'}</td>
                             <td>${row.remarks || row.Remarks || '-'}</td>
