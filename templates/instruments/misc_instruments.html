@@ -34,7 +34,7 @@ $(document).ready(function() {
         opts.forEach(o => $("#type").append(`<option value="${o}">${o}</option>`));
     }).always(() => $('#type-spinner').addClass('d-none'));
 
-    $("#type").change(() => chain("/api/misc/details_field", {type: $("#type").val()}, "#details", "-- Select Details --"));
+    $("#type").change(() => chain("/api/misc/details", {type: $("#type").val()}, "#details", "-- Select Details --"));
     $("#details").change(() => chain("/api/misc/accessories", {type: $("#type").val(), details: $("#details").val()}, "#accessories", "-- Select Accessories --"));
     $("#accessories").change(() => showDetails("/api/misc/details", {type: $("#type").val(), details: $("#details").val(), accessories: $("#accessories").val()}, "Misc Instrument"));
 
