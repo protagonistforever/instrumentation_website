@@ -1,5 +1,4 @@
 {% extends "base.html" %}
-
 {% block content %}
 <div class="container py-5">
     <h1 class="display-5 fw-bold text-center mb-5 text-primary">Misc Instruments</h1>
@@ -12,11 +11,23 @@
 
                     <div class="mb-4">
                         <label class="form-label fw-semibold">Type</label>
-                        <select class="form-select form-select-lg" id="type"><option>-- Choose Type --</option></select>
+                        <select class="form-select form-select-lg" id="type">
+                            <option>-- Choose Type --</option>
+                        </select>
                         <div class="spinner-border spinner-border-sm text-primary mt-2 d-none" id="type-spinner"></div>
                     </div>
-                    <div class="mb-4"><label class="form-label fw-semibold">Details</label><select class="form-select form-select-lg" id="details" disabled><option>-- First select Type --</option></select></div>
-                    <div class="mb-4"><label class="form-label fw-semibold">Accessories</label><select class="form-select form-select-lg" id="accessories" disabled><option>-- First select Details --</option></select></div>
+                    <div class="mb-4">
+                        <label class="form-label fw-semibold">Details</label>
+                        <select class="form-select form-select-lg" id="details" disabled>
+                            <option>-- First select Type --</option>
+                        </select>
+                    </div>
+                    <div class="mb-4">
+                        <label class="form-label fw-semibold">Accessories</label>
+                        <select class="form-select form-select-lg" id="accessories" disabled>
+                            <option>-- First select Details --</option>
+                        </select>
+                    </div>
                 </div>
             </div>
             <div id="results" class="mt-5"></div>
@@ -30,13 +41,15 @@
 <script>
 $(document).ready(function() {
     $('#type-spinner').removeClass('d-none');
-    $.get("/api/misc/types").done(function(opts) {
-        opts.forEach(o => $("#type").append(`<option value="${o}">${o}</option>`));
-    }).always(() => $('#type-spinner').addClass('d-none'));
+    $.get("/api/misc/types")
+        .done(function(opts) {
+            opts.forEach(o => $("#type").append(`<option value="${o}">${o}</option>`));
+        })
+        .always(() => $('#type-spinner').addClass('d-none'));
 
     $("#type").change(() => chain("/api/misc/details", {type: $("#type").val()}, "#details", "-- Select Details --"));
     $("#details").change(() => chain("/api/misc/accessories", {type: $("#type").val(), details: $("#details").val()}, "#accessories", "-- Select Accessories --"));
-    $("#accessories").change(() => showDetails("/api/misc/details", {type: $("#type").val(), details: $("#details").val(), accessories: $("#accessories").val()}, "Misc Instrument"));
+    $("#accessories").change(() => showDetails("/api/misc/results", {type: $("#type").val(), details: $("#details").val(), accessories: $("#accessories").val()}, "Misc Instrument"));
 
     function chain(url, params, sel, placeholder) {
         $(sel).nextAll('select').prop("disabled", true).empty().append('<option>-- Select previous --</option>');
@@ -57,12 +70,43 @@ $(document).ready(function() {
         $("#results").html('<div class="text-center py-5"><div class="spinner-border text-primary"></div></div>');
         $.get(url, params).done(function(data) {
             $("#results").empty();
+            console.log("Fetched Misc Data:", data); // ← Debug: Check keys here
+
             if (data.length === 0) {
                 $("#results").html('<div class="alert alert-info text-center">No miscellaneous instrument found.</div>');
                 return;
             }
-            let html = `<h3 class="mb-4 text-primary">${title}s (${data.length})</h3><div class="table-responsive"><table class="table table-hover"><thead class="table-light"><tr><th>Cost</th><th>Supplier</th><th>Date</th><th>Remarks</th></tr></thead><tbody>`;
-            data.forEach(r => html += `<tr><td><strong>₹${r.cost || r.Cost || '-'}</strong></td><td>${r.supplier || r.Supplier || '-'}</td><td>${r.date || r.Date || '-'}</td><td>${r.remarks || r.Remarks || '-'}</td></tr>`);
+
+            let html = `
+                <h3 class="mb-4 text-primary">${title}s (${data.length})</h3>
+                <div class="table-responsive">
+                    <table class="table table-hover table-bordered align-middle">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Cost</th>
+                                <th>Supplier</th>
+                                <th>Date</th>
+                                <th>Remarks</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+            `;
+
+            data.forEach(r => {
+                // Safely get Cost (handles trailing space in key)
+                const costKey = Object.keys(r).find(k => k.trim().toLowerCase() === "cost") || "Cost";
+                const cost = r[costKey] || r.cost || r.Cost || '-';
+
+                html += `
+                    <tr>
+                        <td><strong>₹${cost}</strong></td>
+                        <td>${r.Supplier || r.supplier || '-'}</td>
+                        <td>${r.Date || r.date || '-'}</td>
+                        <td class="text-break">${r.Remarks || r.remarks || '-'}</td>
+                    </tr>
+                `;
+            });
+
             html += '</tbody></table></div>';
             $("#results").html(html);
         });
@@ -75,5 +119,6 @@ $(document).ready(function() {
     .card:hover { transform: translateY(-5px); }
     .form-select-lg { border-radius: 12px; padding: 0.75rem 1rem; }
     .table th { font-weight: 600; background: #f8f9fa; }
+    .table td { vertical-align: middle; }
 </style>
 {% endblock %}
