@@ -943,8 +943,8 @@ def api_misc_results():
     return jsonify(matches)
 
 # ================== ADMIN ==================
-ADMIN_USER = os.environ.get("ADMIN_USER", "admin")
-ADMIN_PASS = os.environ.get("ADMIN_PASS", "admin")
+ADMIN_USER = os.environ.get("ADMIN_USER")
+ADMIN_PASS = os.environ.get("ADMIN_PASS")
 
 @app.route("/admin", methods=["GET", "POST"])
 def admin():
